@@ -1,0 +1,750 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * Design-system color tokens as RGB channels (see tailwind.config.js). Light is
+   * the default; `[data-theme="dark"]` (set by the theme store) swaps the CHROME to
+   * a dark palette. The document sheet stays a readable light surface in both themes
+   * — that override lives on `.scribe-page-sheet` in the components layer below.
+   */
+  :root {
+    color-scheme: light;
+
+    --color-surface: 246 247 249;
+    --color-sheet: 255 255 255;
+    --color-subtle: 241 242 245;
+    --color-border: 234 235 237;
+    --color-input-border: 226 232 240;
+
+    --color-primary: 59 73 223;
+    --color-primary-hover: 50 62 194;
+    --color-primary-active: 43 53 168;
+    --color-primary-soft: 224 231 255;
+
+    --color-ink: 15 23 42;
+    --color-ink-2: 71 85 105;
+    --color-ink-3: 148 163 184;
+
+    --color-error: 186 26 26;
+    --color-error-bg: 255 218 214;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --color-surface: 15 23 42; /* slate-900 workspace background */
+    --color-sheet: 30 41 59; /* slate-800 elevated chrome (header, sidebar, cards) */
+    --color-subtle: 51 65 85; /* slate-700 inactive containers */
+    --color-border: 51 65 85; /* slate-700 micro-borders */
+    --color-input-border: 71 85 105;
+
+    --color-primary: 108 121 240; /* lifted indigo for contrast on dark */
+    --color-primary-hover: 124 136 245;
+    --color-primary-active: 90 104 230;
+    --color-primary-soft: 42 49 104; /* dark indigo wash for active nav/chips */
+
+    --color-ink: 226 232 240; /* slate-200 primary text */
+    --color-ink-2: 148 163 184; /* slate-400 secondary */
+    --color-ink-3: 100 116 139; /* slate-500 muted */
+
+    --color-error: 248 113 113;
+    --color-error-bg: 67 22 22;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: theme('colors.surface');
+    color: theme('colors.ink.DEFAULT');
+    font-family: theme('fontFamily.sans');
+    font-size: 15px;
+    line-height: 24px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Material Symbols Outlined — 1.5px optical stroke feel via weight 400. */
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    display: inline-block;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+}
+
+@layer utilities {
+  /* Frosted overlay surface (Level 3) used by floating chrome (e.g. the editor toolbar). */
+  .surface-frost {
+    background-color: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(8px);
+  }
+
+  /* Dark mode: the frosted chrome (toolbar) becomes an elevated dark surface so it is
+     themed like the rest of the application, not a light bar over a dark workspace. */
+  :root[data-theme='dark'] .surface-frost {
+    background-color: rgba(30, 41, 59, 0.94);
+  }
+}
+
+@layer components {
+  /*
+   * Document prose — the editable Tiptap content. This is NOT a generic Tailwind
+   * `prose` block: it maps the ProseMirror node types onto the Scribe design
+   * system's "Document Spine" (Newsreader) typography and rhythm (UI/DESIGN.md).
+   * The class is applied to the ProseMirror root via the editor's `editorProps`.
+   */
+  /*
+   * A4 PAGINATION (task §2). `.scribe-pages` is the gray editor background that the
+   * white sheets float on; `.scribe-page-sheet` is the A4-proportioned column; the
+   * ProseMirror root (`.scribe-prose`) is the continuous white sheet. The visual
+   * page gaps are rendered by the pagination extension as `.scribe-page-gap`
+   * decorations — see features/editor/pagination.ts (the px values MUST agree).
+   */
+  .scribe-pages {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100%;
+    padding: 2.5rem 1rem 6rem;
+    background-color: theme('colors.surface');
+    /* A4 keeps its fixed geometry; on viewports narrower than a sheet the pages area
+       scrolls horizontally rather than distorting the A4 ratio (task §7). */
+    overflow-x: auto;
+  }
+
+  /*
+   * The A4 column. `.scribe-page-backdrop` draws the full-height white sheets that
+   * give every page a STABLE A4 size (content never shrinks a page); `.scribe-prose`
+   * is a TRANSPARENT editing layer stretched over them. Geometry comes from CSS
+   * variables set in JS from pageGeometry.ts (the single source of truth); the px
+   * fallbacks match A4 @ 96dpi so styling is correct even before JS runs.
+   */
+  .scribe-page-sheet {
+    --sheet-pad-x: var(--page-margin-x, 72px);
+    --sheet-pad-y: var(--page-margin-y, 72px);
+    position: relative;
+    width: var(--page-width, 794px);
+    flex: none;
+
+    /*
+     * The A4 document sheet is a DOCUMENT surface with its OWN token scope, independent
+     * of the application chrome. In LIGHT mode it is a white page with dark ink; in DARK
+     * mode (override below) it becomes an intentionally-styled dark page — still visually
+     * distinct from the (darker) workspace behind it, so the user still reads it as a
+     * document. Because the prose reads these tokens, every document element (headings,
+     * text, links, code, blockquote, tasks, media, comments) themes together from here.
+     * EXPORT never reads these — the PDF/DOCX generators use their own explicit light
+     * document colors, so a dark UI still exports a normal light document.
+     */
+    --color-sheet: 255 255 255;
+    --color-ink: 15 23 42;
+    --color-ink-2: 71 85 105;
+    --color-ink-3: 148 163 184;
+    --color-primary: 59 73 223;
+    --color-primary-soft: 224 231 255;
+    --color-border: 234 235 237;
+    --color-subtle: 241 242 245;
+  }
+
+  :root[data-theme='dark'] .scribe-page-sheet {
+    --color-sheet: 27 34 48; /* dark page, lifted above the slate-900 workspace */
+    --color-ink: 226 232 240; /* readable light body text */
+    --color-ink-2: 168 181 201;
+    --color-ink-3: 122 136 158;
+    --color-primary: 129 140 248; /* lifted indigo: links, list markers, quote rule */
+    --color-primary-soft: 55 55 104;
+    --color-border: 55 66 86;
+    --color-subtle: 40 49 67; /* inline-code chip, inactive containers */
+  }
+
+  /* Backdrop stack of A4 sheets, one per logical page, behind the content. */
+  .scribe-page-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--inter-page-gap, 48px);
+    pointer-events: none;
+  }
+
+  .scribe-sheet {
+    flex: none;
+    height: var(--page-height, 1123px);
+    background-color: theme('colors.sheet');
+    border-radius: 2px;
+    box-shadow: theme('boxShadow.sheet');
+  }
+
+  /* In dark mode the soft drop shadow is invisible, so give each page a hairline border
+     to keep the A4 page edge legible against the workspace. */
+  :root[data-theme='dark'] .scribe-sheet {
+    border: 1px solid rgba(148, 163, 184, 0.12);
+  }
+
+  .scribe-prose {
+    position: relative;
+    z-index: 1;
+    font-family: theme('fontFamily.display');
+    font-size: 18px;
+    line-height: 30px;
+    color: theme('colors.ink.DEFAULT');
+    caret-color: theme('colors.primary.DEFAULT');
+    box-sizing: border-box;
+    width: 100%;
+    /* Stretch the transparent editing layer to cover the full backdrop (all pages),
+       so the last / content-light page still reads as a full A4 sheet. JS sets the
+       exact height per page count; the fallback is a single A4 page. */
+    min-height: var(--content-min-height, 1123px);
+    padding: var(--sheet-pad-y) var(--sheet-pad-x);
+    background-color: transparent;
+  }
+
+  /*
+   * COLLABORATIVE PRESENCE — remote cursors, name flags, and selections
+   * (UI/DESIGN.md → "Live Presence & Collaborative Cursors"). These style only the
+   * STRUCTURE; each collaborator's color arrives as a per-element inline style from
+   * their Yjs awareness (see features/editor/collabCursor.ts), so no rule here can
+   * make one collaborator's color affect another. All of it is presence chrome:
+   * absolutely-positioned / zero-flow so it never changes page height or pagination,
+   * and never enters the document or the Y.Doc.
+   */
+
+  /* Thin vertical caret bar in the collaborator's color. */
+  .scribe-prose .collaboration-cursor__caret {
+    position: relative;
+    display: inline-block;
+    width: 2px;
+    height: 1.05em;
+    margin-left: -1px;
+    margin-right: -1px;
+    vertical-align: text-bottom;
+    border-radius: 1px;
+    pointer-events: none;
+    box-sizing: border-box;
+    /* Gentle, non-flashing idle pulse so a live caret reads as "live". */
+    animation: scribe-caret-pulse 1.4s ease-in-out infinite;
+  }
+
+  /* Floating name flag above the caret — compact, out of flow, never covers text. */
+  .scribe-prose .collaboration-cursor__label {
+    position: absolute;
+    left: -1px;
+    top: -1.5em;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px 6px;
+    border-radius: 0.3rem 0.3rem 0.3rem 0;
+    font-family: theme('fontFamily.sans');
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+  }
+
+  /* Translucent remote selection wash + solid underline (color set inline). */
+  .scribe-prose .collaboration-selection {
+    border-radius: 1px;
+  }
+
+  @keyframes scribe-caret-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scribe-prose .collaboration-cursor__caret {
+      animation: none;
+    }
+  }
+
+  /* A page boundary in the editing layer. It is a TRANSPARENT spacer: it flows the
+     content down so the next block lands at the top of the next backdrop sheet. The
+     visible gutter + sheet edges are drawn by the backdrop (.scribe-sheet), so this
+     never paints — it only reserves height (set inline by the pagination extension).
+     Content amount therefore cannot change a page's outer size. */
+  .scribe-page-gap {
+    display: block;
+    box-sizing: border-box;
+    margin-top: 0 !important;
+    background-color: transparent;
+    user-select: none;
+  }
+
+  /* The block immediately after a gap already has its page-top margin from the gap. */
+  .scribe-page-gap + * {
+    margin-top: 0 !important;
+  }
+
+  /* The explicit page-break node when NOT decorated (e.g. server HTML): a thin,
+     unobtrusive rule. In the live editor the pagination extension turns it into a
+     full `.scribe-page-gap`. */
+  .scribe-page-break {
+    display: block;
+    height: 28px;
+  }
+
+  .scribe-prose .ProseMirror-selectednode.scribe-page-gap,
+  .scribe-prose .ProseMirror-selectednode.scribe-page-break {
+    outline: 2px solid theme('colors.primary.DEFAULT');
+    outline-offset: -2px;
+  }
+
+  .scribe-prose:focus {
+    outline: none;
+  }
+
+  /* Local selection — subtle primary wash (peer selections come in Phase 2). */
+  .scribe-prose ::selection {
+    background-color: rgba(59, 73, 223, 0.16);
+  }
+
+  /* A stronger wash on the dark page keeps the selection visible on dark ink. */
+  :root[data-theme='dark'] .scribe-prose ::selection {
+    background-color: rgba(129, 140, 248, 0.34);
+  }
+
+  .scribe-prose > * + * {
+    margin-top: 1.1em;
+  }
+
+  .scribe-prose p {
+    margin: 0;
+  }
+
+  .scribe-prose h1,
+  .scribe-prose h2,
+  .scribe-prose h3 {
+    font-family: theme('fontFamily.display');
+    color: theme('colors.ink.DEFAULT');
+    letter-spacing: -0.01em;
+  }
+
+  .scribe-prose h1 {
+    font-size: 36px;
+    line-height: 44px;
+    font-weight: 500;
+    margin-top: 1.4em;
+  }
+
+  .scribe-prose h2 {
+    font-size: 26px;
+    line-height: 34px;
+    font-weight: 600;
+    margin-top: 1.5em;
+  }
+
+  .scribe-prose h3 {
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 600;
+    margin-top: 1.4em;
+  }
+
+  .scribe-prose strong {
+    font-weight: 600;
+  }
+
+  .scribe-prose em {
+    font-style: italic;
+  }
+
+  /* Underline mark (@tiptap/extension-underline renders <u>). Explicit so a CSS
+     reset can't drop it; a small offset keeps it legible under the serif body. */
+  .scribe-prose u {
+    text-decoration-line: underline;
+    text-underline-offset: 2px;
+  }
+
+  .scribe-prose ul,
+  .scribe-prose ol {
+    margin: 0;
+    padding-left: 1.6em;
+  }
+
+  .scribe-prose ul {
+    list-style: disc;
+  }
+
+  .scribe-prose ol {
+    list-style: decimal;
+  }
+
+  .scribe-prose li {
+    margin-top: 0.4em;
+  }
+
+  .scribe-prose li::marker {
+    color: theme('colors.primary.DEFAULT');
+  }
+
+  /* Nested lists tighten and switch marker style, as expected of an outline. */
+  .scribe-prose li > ul,
+  .scribe-prose li > ol {
+    margin-top: 0.4em;
+  }
+
+  .scribe-prose li > ul {
+    list-style: circle;
+  }
+
+  .scribe-prose li p {
+    margin: 0;
+  }
+
+  /* Strikethrough mark (@tiptap/extension-strike renders <s>). Explicit so a CSS
+     reset can't drop the line. */
+  .scribe-prose s {
+    text-decoration-line: line-through;
+  }
+
+  /* Inline code mark (renders <code>). A subtle tinted chip in the mono face —
+     visually an INLINE run, never a fenced block. */
+  .scribe-prose code {
+    font-family: theme('fontFamily.mono');
+    font-size: 0.9em;
+    background-color: theme('colors.subtle');
+    color: theme('colors.ink.DEFAULT');
+    padding: 0.1em 0.35em;
+    border-radius: theme('borderRadius.sm');
+    border: 1px solid theme('colors.border');
+  }
+
+  /* Blockquote — a real block node with a left rule and quiet ink, never a
+     CSS-only fake around a paragraph. */
+  .scribe-prose blockquote {
+    margin: 0;
+    padding-left: 1em;
+    border-left: 3px solid theme('colors.primary.DEFAULT');
+    color: theme('colors.ink.2');
+    font-style: italic;
+  }
+
+  .scribe-prose blockquote > * + * {
+    margin-top: 0.6em;
+  }
+
+  /* Hyperlink mark. Primary ink + underline; long URLs wrap rather than overflow
+     the A4 sheet. */
+  .scribe-prose a {
+    color: theme('colors.primary.DEFAULT');
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+  }
+
+  /* Task checklist (TaskList/TaskItem). Reset the list styling, then lay each item
+     out as [checkbox] [content]. The checkbox is the extension's node-view input;
+     its `checked` state is DOCUMENT data (a node attribute), not CSS. */
+  .scribe-prose ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 0.2em;
+  }
+
+  .scribe-prose ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55em;
+    margin-top: 0.4em;
+  }
+
+  .scribe-prose ul[data-type='taskList'] li > label {
+    flex: 0 0 auto;
+    margin-top: 0.15em;
+    user-select: none;
+  }
+
+  .scribe-prose ul[data-type='taskList'] li > div {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .scribe-prose ul[data-type='taskList'] input[type='checkbox'] {
+    width: 1em;
+    height: 1em;
+    accent-color: theme('colors.primary.DEFAULT');
+    cursor: pointer;
+  }
+
+  /* Completed tasks read as done (strike + muted), driven by the node's data-checked
+     attribute — purely presentational; the source of truth is the node attribute. */
+  .scribe-prose ul[data-type='taskList'] li[data-checked='true'] > div {
+    text-decoration: line-through;
+    color: theme('colors.ink.3');
+  }
+
+  /* Nested task lists indent like an outline. */
+  .scribe-prose ul[data-type='taskList'] ul[data-type='taskList'] {
+    padding-left: 1.2em;
+  }
+
+  /* Media node (ADR 0012). The node view renders <figure> with <img>, a controls bar, a
+     remove button, a resize handle and a status caption. Document-semantic layout lives
+     in data-layout / data-align (collaborates via Yjs); the image never exceeds the
+     content column (max-width:100%). */
+  .scribe-media-figure {
+    position: relative;
+    margin: 1.1em 0;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  /* Block layout: alignment via auto margins (deterministic, print-compatible). */
+  .scribe-media-figure[data-layout='block'][data-align='center'] {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .scribe-media-figure[data-layout='block'][data-align='left'] {
+    margin-left: 0;
+    margin-right: auto;
+  }
+  .scribe-media-figure[data-layout='block'][data-align='right'] {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  /* Wrap layouts: the image floats and following blocks flow around it. */
+  .scribe-media-figure[data-layout='wrap-left'] {
+    float: left;
+    margin: 0.3em 1.2em 0.6em 0;
+    max-width: 50%;
+  }
+  .scribe-media-figure[data-layout='wrap-right'] {
+    float: right;
+    margin: 0.3em 0 0.6em 1.2em;
+    max-width: 50%;
+  }
+
+  .scribe-media-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: theme('borderRadius.sm');
+  }
+
+  /* All interactive chrome (remove / controls / resize) is hidden by default and only
+     revealed inside an EDITABLE editor — viewers never see or reach editing affordances. */
+  .scribe-media-remove,
+  .scribe-media-controls,
+  .scribe-media-resize {
+    display: none;
+  }
+
+  .scribe-media-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 4;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 9999px;
+    border: none;
+    background-color: rgba(15, 23, 42, 0.7);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .scribe-prose[contenteditable='true'] .scribe-media-figure .scribe-media-remove {
+    display: flex;
+  }
+  .scribe-prose[contenteditable='true'] .scribe-media-figure:hover .scribe-media-remove,
+  .scribe-prose[contenteditable='true']
+    .scribe-media-figure.ProseMirror-selectednode
+    .scribe-media-remove,
+  .scribe-media-remove:focus-visible {
+    opacity: 1;
+  }
+
+  /* Layout controls bar — shown when the media node is selected in an editable editor. */
+  .scribe-media-controls {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 4;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 6px;
+    background-color: rgba(15, 23, 42, 0.72);
+  }
+  .scribe-prose[contenteditable='true']
+    .scribe-media-figure.ProseMirror-selectednode
+    .scribe-media-controls {
+    display: flex;
+  }
+  .scribe-media-ctl {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #e5e7eb;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .scribe-media-ctl:hover {
+    background-color: rgba(255, 255, 255, 0.18);
+  }
+  .scribe-media-ctl.is-active {
+    background-color: theme('colors.primary.DEFAULT');
+    color: #fff;
+  }
+
+  /* Resize handle — a corner grip shown when selected in an editable editor. */
+  .scribe-media-resize {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 4;
+    width: 14px;
+    height: 14px;
+    border: 2px solid theme('colors.primary.DEFAULT');
+    border-radius: 3px;
+    background: #fff;
+    cursor: nwse-resize;
+    touch-action: none;
+  }
+  .scribe-prose[contenteditable='true']
+    .scribe-media-figure.ProseMirror-selectednode
+    .scribe-media-resize {
+    display: block;
+  }
+  .scribe-media-figure.is-resizing .scribe-media-img {
+    pointer-events: none;
+  }
+
+  /* Loading / error placeholder text under the image (no broken native image icon). */
+  .scribe-media-figure[data-state='loading'] .scribe-media-img,
+  .scribe-media-figure[data-state='error'] .scribe-media-img {
+    display: none;
+  }
+
+  .scribe-media-status:empty {
+    display: none;
+  }
+
+  .scribe-media-status {
+    font-family: theme('fontFamily.sans');
+    font-size: 12px;
+    color: theme('colors.ink.3');
+    padding: 1.5em 1em;
+    margin-top: 0.4em;
+    border: 1px dashed theme('colors.border');
+    border-radius: theme('borderRadius.sm');
+    width: 100%;
+    text-align: center;
+  }
+
+  .scribe-media-figure.ProseMirror-selectednode .scribe-media-img {
+    outline: 2px solid theme('colors.primary.DEFAULT');
+    outline-offset: 2px;
+  }
+
+  /* Transient editor toasts (e.g. an image-paste upload failure). */
+  .scribe-editor-toasts {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: min(90vw, 420px);
+  }
+  .scribe-editor-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 14px;
+    border-radius: theme('borderRadius.md');
+    background-color: theme('colors.sheet');
+    border: 1px solid theme('colors.border');
+    box-shadow: theme('boxShadow.overlay');
+    color: theme('colors.ink.DEFAULT');
+    font-size: 13px;
+  }
+  .scribe-editor-toast[data-kind='error'] {
+    border-color: theme('colors.error');
+    color: theme('colors.error');
+  }
+  .scribe-editor-toast button {
+    margin-left: auto;
+    color: theme('colors.ink.3');
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  /* Inline comment anchor (ADR 0013). A soft highlight; a resolved comment dims. The
+     mark only tints text — it never adds characters and never appears in export. */
+  .scribe-prose .scribe-comment {
+    background-color: rgba(245, 158, 11, 0.22);
+    border-bottom: 2px solid rgba(245, 158, 11, 0.9);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  .scribe-prose .scribe-comment[data-comment-resolved='true'] {
+    background-color: transparent;
+    border-bottom-color: theme('colors.border');
+  }
+}
+
+/* Comments side panel (ADR 0013) — outside the prose layer; it is app chrome, not
+   document content. A fixed right rail so it never affects the A4 sheet layout. */
+.scribe-comments-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: 90vw;
+  height: 100vh;
+  background-color: theme('colors.surface');
+  border-left: 1px solid theme('colors.border');
+  box-shadow: theme('boxShadow.overlay');
+}
+
+@media (max-width: 640px) {
+  .scribe-comments-panel {
+    width: 100vw;
+  }
+}
