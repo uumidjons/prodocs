@@ -1,0 +1,35 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# media uploads (object storage on disk; ADR 0012)
+var/
+apps/server/var/
+
+# vite
+apps/web/dist/
+
+# playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+

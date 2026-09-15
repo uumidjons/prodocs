@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ProDocs — Collaborative Document Editor</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-highest": "#d3e4fe",
+            "on-background": "#0b1c30",
+            "primary": "#1c2ac8",
+            "on-surface": "#0b1c30",
+            "primary-fixed": "#e0e0ff",
+            "on-primary-fixed": "#000668",
+            "on-secondary-fixed": "#002113",
+            "surface": "#f8f9ff",
+            "on-primary-container": "#d2d4ff",
+            "on-tertiary-fixed-variant": "#92002a",
+            "tertiary-fixed": "#ffdadb",
+            "tertiary-container": "#bb093a",
+            "outline": "#757687",
+            "tertiary": "#900029",
+            "tertiary-fixed-dim": "#ffb2b7",
+            "outline-variant": "#c6c5d8",
+            "surface-container-high": "#dce9ff",
+            "on-tertiary-container": "#ffcacd",
+            "surface-tint": "#3c4ae0",
+            "secondary-fixed-dim": "#4edea3",
+            "on-secondary": "#ffffff",
+            "error-container": "#ffdad6",
+            "inverse-primary": "#bdc2ff",
+            "secondary-container": "#6cf8bb",
+            "on-tertiary-fixed": "#40000d",
+            "on-error": "#ffffff",
+            "on-primary": "#ffffff",
+            "secondary-fixed": "#6ffbbe",
+            "surface-container-low": "#eff4ff",
+            "surface-container": "#e5eeff",
+            "background": "#f8f9ff",
+            "on-surface-variant": "#454655",
+            "inverse-surface": "#213145",
+            "primary-fixed-dim": "#bdc2ff",
+            "on-secondary-fixed-variant": "#005236",
+            "surface-variant": "#d3e4fe",
+            "surface-dim": "#cbdbf5",
+            "surface-container-lowest": "#ffffff",
+            "on-error-container": "#93000a",
+            "primary-container": "#3b49df",
+            "secondary": "#006c49",
+            "surface-bright": "#f8f9ff",
+            "on-secondary-container": "#00714d",
+            "on-tertiary": "#ffffff",
+            "on-primary-fixed-variant": "#1d2cc9",
+            "error": "#ba1a1a",
+            "inverse-on-surface": "#eaf1ff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-md": "0.75rem",
+            "space-xs": "0.25rem",
+            "space-xl": "2rem",
+            "gutter": "1.5rem",
+            "margin": "2rem",
+            "space-lg": "1.25rem"
+          },
+          "fontFamily": {
+            "headline-lg-mobile": ["Newsreader"],
+            "label-md": ["Plus Jakarta Sans"],
+            "code-default": ["JetBrains Mono"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "headline-lg": ["Newsreader"],
+            "label-sm": ["Plus Jakarta Sans"],
+            "headline-md": ["Newsreader"],
+            "body-default": ["Plus Jakarta Sans"],
+            "body-editorial": ["Newsreader"],
+            "headline-display": ["Newsreader"],
+            "headline-sm": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+            "label-md": ["13px", {"lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+            "code-default": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "body-sm": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "headline-lg": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.015em", "fontWeight": "500"}],
+            "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}],
+            "headline-md": ["26px", {"lineHeight": "34px", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+            "body-default": ["15px", {"lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "400"}],
+            "body-editorial": ["18px", {"lineHeight": "30px", "letterSpacing": "0em", "fontWeight": "400"}],
+            "headline-display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+            "headline-sm": ["18px", {"lineHeight": "26px", "letterSpacing": "-0.005em", "fontWeight": "600"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 350, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .sheet-shadow {
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 12px 32px -4px rgba(15, 23, 42, 0.04);
+    }
+    .popover-shadow {
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06), 0 20px 36px -6px rgba(15, 23, 42, 0.08);
+    }
+    .selection-alex {
+      background-color: rgba(16, 185, 129, 0.14);
+      border-bottom: 2px solid #10b981;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex flex-col font-body-default text-body-default overflow-x-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- ==================== TOP NAVIGATION BAR ==================== -->
+<header class="w-full h-14 px-4 flex items-center justify-between sticky top-0 z-40 bg-surface-container-lowest border-b border-outline-variant/30 shadow-sm select-none">
+<!-- Left Cluster: Brand, Navigation & Inline Title -->
+<div class="flex items-center gap-3">
+<!-- Brand Emblem & Identity -->
+<div class="flex items-center gap-2 pr-2">
+<div class="w-7 h-7 rounded-lg bg-primary flex items-center justify-center text-on-primary shadow-sm shadow-primary/20">
+<span class="material-symbols-outlined !text-[16px]">draw</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">ProDocs</span>
+</div>
+<span class="text-outline-variant text-sm font-light">/</span>
+<!-- Primary Nav Links -->
+<nav class="hidden md:flex items-center gap-4 text-xs font-label-md">
+<span class="text-primary font-semibold border-b-2 border-primary pb-1 cursor-pointer">Workspace</span>
+<span class="text-on-surface-variant hover:text-on-surface pb-1 transition-colors cursor-pointer">All Docs</span>
+<span class="text-on-surface-variant hover:text-on-surface pb-1 transition-colors cursor-pointer">Drafts</span>
+</nav>
+<span class="hidden md:inline text-outline-variant text-sm font-light">/</span>
+<!-- Document Editable Title & Sync Pill -->
+<div class="flex items-center gap-2 group">
+<div class="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-surface-container-low transition-colors duration-150 cursor-pointer">
+<span class="font-headline-sm text-headline-sm font-semibold text-on-surface tracking-tight">Project Strategy 2025</span>
+<span class="material-symbols-outlined !text-[14px] text-outline opacity-0 group-hover:opacity-100 transition-opacity">edit</span>
+</div>
+<!-- Sync Pill -->
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-surface-container-low border border-outline-variant/40 text-on-surface-variant text-xs font-label-sm" title="Last saved 12 seconds ago">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="hidden sm:inline font-medium">Synced to cloud</span>
+</div>
+</div>
+</div>
+<!-- Center Jump Search Shortcut -->
+<div class="hidden lg:flex items-center">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-xs font-label-md transition-colors border border-outline-variant/30">
+<span class="material-symbols-outlined !text-[16px] text-outline">search</span>
+<span>Jump to or command...</span>
+<kbd class="px-1.5 py-0.5 rounded bg-surface-container-lowest text-[10px] font-code-default text-outline shadow-xs border border-outline-variant/40">⌘K</kbd>
+</button>
+</div>
+<!-- Right Cluster: Collaborative Presence & Actions -->
+<div class="flex items-center gap-3">
+<!-- Live Realtime Presence Avatars -->
+<div class="flex items-center -space-x-1.5 pr-1">
+<!-- Alex Rivera -->
+<div class="relative group cursor-pointer" title="Alex Rivera (Editing Section 2)">
+<div class="w-7 h-7 rounded-full bg-emerald-100 border-2 border-emerald-500 flex items-center justify-center text-[11px] font-bold text-emerald-800">
+            AR
+          </div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-surface-container-lowest"></span>
+</div>
+<!-- Maya Lin -->
+<div class="relative group cursor-pointer" title="Maya Lin (Commenting)">
+<div class="w-7 h-7 rounded-full bg-rose-100 border-2 border-rose-500 flex items-center justify-center text-[11px] font-bold text-rose-800">
+            ML
+          </div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-rose-500 border border-surface-container-lowest"></span>
+</div>
+<!-- Daniel Vance -->
+<div class="relative group cursor-pointer" title="Daniel Vance (Viewing)">
+<div class="w-7 h-7 rounded-full bg-amber-100 border-2 border-amber-500 flex items-center justify-center text-[11px] font-bold text-amber-800">
+            DV
+          </div>
+<span class="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-amber-500 border border-surface-container-lowest"></span>
+</div>
+<!-- Overflow Badge -->
+<div class="w-7 h-7 rounded-full bg-surface-container border border-outline-variant/60 flex items-center justify-center text-[10px] font-label-sm text-on-surface-variant font-semibold cursor-pointer hover:bg-surface-container-high transition-colors">
+          +2
+        </div>
+</div>
+<!-- Live Voice Huddle Indicator -->
+<button class="hidden xl:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-secondary text-xs font-label-md transition-colors" title="Start voice huddle">
+<span class="material-symbols-outlined !text-[16px] text-secondary">headset_mic</span>
+<span>Huddle</span>
+</button>
+<!-- History & Cloud status icons -->
+<div class="flex items-center gap-0.5 border-l border-outline-variant/30 pl-2">
+<button class="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors" title="Version History">
+<span class="material-symbols-outlined">history</span>
+</button>
+<button class="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors" title="Comments Overview">
+<span class="material-symbols-outlined">comment</span>
+</button>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-2">
+<button class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-label-md text-on-surface rounded-lg hover:bg-surface-container-low transition-colors duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined !text-[16px]">file_download</span>
+<span>Export</span>
+</button>
+<button class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-label-md shadow-sm transition-all duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined !text-[16px]">lock</span>
+<span>Share</span>
+</button>
+</div>
+<!-- User Profile Avatar -->
+<div class="pl-1">
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/40 ring-1 ring-surface-container cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="Close-up portrait of a thoughtful design director with minimalist glasses in soft neutral daylight, editorial clean lighting, modern creative workspace background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJCrbLUGXc3j3PxFkGccjwHnPUPaorU6j0_hOZlYfu_d6Y4ptDk16kmYr-LemBjAOBhZmt1Ia-PTXyv5W6SRGSmayJHoFvt1w5hOXMIrn05MC_nbzoMVPXg4Td9ili-DggwX1Nor4d8Xex2N3_jDMrI414V3XZgOp0HTefV034sce_CydSRznrS7N36dBaGEJO6jjdF4ix7EYVGxp7X9mekiBHSPzOLSLYXVYjtX3wjyrpYhvOpprYhQ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- ==================== MAIN WORKSPACE AREA ==================== -->
+<div class="flex-1 flex relative">
+<!-- COLLAPSIBLE LEFT SIDEBAR (SideNavBar component) -->
+<aside class="hidden xl:flex w-64 h-[calc(100vh-3.5rem)] flex-col justify-between p-3 border-r border-outline-variant/30 bg-surface-container-low select-none sticky top-14">
+<div class="flex flex-col gap-4">
+<!-- Sidebar Workspace Switcher Header -->
+<div class="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-surface-container transition-colors cursor-pointer">
+<div class="flex items-center gap-2.5">
+<div class="w-7 h-7 rounded-md bg-inverse-surface text-inverse-on-surface flex items-center justify-center font-bold text-xs">
+              ES
+            </div>
+<div>
+<h2 class="font-headline-sm text-[13px] font-bold text-on-surface leading-tight">Editorial Studio</h2>
+<p class="font-body-sm text-[11px] text-outline leading-tight">Personal Cloud</p>
+</div>
+</div>
+<span class="material-symbols-outlined !text-[16px] text-outline">unfold_more</span>
+</div>
+<!-- New Document Primary CTA -->
+<button class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-surface-container-lowest hover:bg-surface text-primary border border-outline-variant/40 font-label-md text-xs shadow-xs transition-all duration-150 active:scale-[0.98]">
+<span class="material-symbols-outlined !text-[16px]">add</span>
+<span>New Document</span>
+</button>
+<!-- Navigation Tabs -->
+<nav class="flex flex-col gap-0.5">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-container-highest text-primary font-semibold text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">description</span>
+<span>Documents</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">schedule</span>
+<span>Recent</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">dashboard_customize</span>
+<span>Templates</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">group</span>
+<span>Shared with Me</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">delete</span>
+<span>Trash</span>
+</a>
+</nav>
+<!-- Outline / Table of Contents in Document -->
+<div class="mt-4 px-2">
+<span class="font-label-sm text-[10px] uppercase tracking-wider text-outline font-bold">On This Page</span>
+<div class="mt-2 flex flex-col gap-1.5 border-l border-outline-variant/40 pl-2.5 text-xs text-on-surface-variant">
+<a class="hover:text-primary transition-colors text-primary font-medium" href="#core-objectives">Core Objectives</a>
+<a class="hover:text-primary transition-colors text-outline" href="#arch-milestones">Architecture &amp; Milestones</a>
+<a class="hover:text-primary transition-colors text-outline" href="#performance">Telemetry &amp; Metrics</a>
+</div>
+</div>
+</div>
+<!-- Footer navigation -->
+<div class="pt-3 border-t border-outline-variant/30 flex flex-col gap-0.5">
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors text-xs font-label-md" href="#">
+<span class="material-symbols-outlined !text-[18px]">help</span>
+<span>Help &amp; Guide</span>
+</a>
+</div>
+</aside>
+<!-- MAIN EDITOR CANVAS CONTAINER -->
+<main class="flex-1 flex flex-col items-center bg-[#F7F8FA] min-h-[calc(100vh-3.5rem)] pb-24 relative overflow-y-auto">
+<!-- FLOATING FORMATTING TOOLBAR DOCK -->
+<div class="sticky top-4 z-30 mt-3 mb-6">
+<div class="flex items-center gap-0.5 px-2 py-1 rounded-xl bg-surface-container-lowest/95 backdrop-blur-md border border-outline-variant/50 popover-shadow select-none">
+<!-- History segment -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Undo (⌘Z)">
+<span class="material-symbols-outlined">undo</span>
+</button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Redo (⌘⇧Z)">
+<span class="material-symbols-outlined">redo</span>
+</button>
+<div class="w-px h-5 bg-outline-variant/40 mx-1"></div>
+<!-- Style Selector Dropdown -->
+<div class="relative flex items-center">
+<button class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-label-md text-on-surface hover:bg-surface-container-low transition-colors">
+<span>Heading 2</span>
+<span class="material-symbols-outlined !text-[14px] text-outline">expand_more</span>
+</button>
+</div>
+<div class="w-px h-5 bg-outline-variant/40 mx-1"></div>
+<!-- Typography toggles -->
+<!-- Bold (Active State Example) -->
+<button class="p-1.5 rounded-lg bg-surface-container-highest text-primary border border-primary/20 font-semibold" title="Bold (⌘B)">
+<span class="material-symbols-outlined font-bold">format_bold</span>
+</button>
+<!-- Italic -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Italic (⌘I)">
+<span class="material-symbols-outlined">format_italic</span>
+</button>
+<!-- Underline -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Underline (⌘U)">
+<span class="material-symbols-outlined">format_underlined</span>
+</button>
+<!-- Strikethrough -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Strikethrough">
+<span class="material-symbols-outlined">format_strikethrough</span>
+</button>
+<!-- Inline Code -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Inline Code">
+<span class="material-symbols-outlined">code</span>
+</button>
+<div class="w-px h-5 bg-outline-variant/40 mx-1"></div>
+<!-- List Formatting -->
+<!-- Bulleted List (Active) -->
+<button class="p-1.5 rounded-lg bg-surface-container-highest text-primary border border-primary/20" title="Bullet List">
+<span class="material-symbols-outlined">format_list_bulleted</span>
+</button>
+<!-- Numbered List -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Numbered List">
+<span class="material-symbols-outlined">format_list_numbered</span>
+</button>
+<!-- Task list -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Task Checklist">
+<span class="material-symbols-outlined">check_box</span>
+</button>
+<div class="w-px h-5 bg-outline-variant/40 mx-1"></div>
+<!-- Alignment & Inserts -->
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Align Left">
+<span class="material-symbols-outlined">format_align_left</span>
+</button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Blockquote">
+<span class="material-symbols-outlined">format_quote</span>
+</button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Insert Link">
+<span class="material-symbols-outlined">link</span>
+</button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Insert Media">
+<span class="material-symbols-outlined">image</span>
+</button>
+<button class="p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface transition-colors" title="Add Inline Comment">
+<span class="material-symbols-outlined">add_comment</span>
+</button>
+</div>
+</div>
+<!-- HERO DOCUMENT SHEET (EDITORIAL WHITE CANVAS) -->
+<div class="w-full max-w-[850px] bg-surface-container-lowest border border-[#EAEBED] rounded-xl sheet-shadow px-8 md:px-16 py-14 relative mx-4 transition-all">
+<!-- FLOATING MARGIN COMMENT FROM MAYA LIN (Anchored to Section Objectives) -->
+<div class="hidden 2xl:block absolute -right-72 top-[340px] w-64 popover-shadow bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-3 z-20 transition-all">
+<div class="flex items-center justify-between mb-1.5">
+<div class="flex items-center gap-2">
+<div class="w-5 h-5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold flex items-center justify-center border border-rose-400">
+                ML
+              </div>
+<span class="text-xs font-label-md font-semibold text-on-surface">Maya Lin</span>
+</div>
+<span class="text-[10px] text-outline">Just now</span>
+</div>
+<p class="text-xs text-on-surface font-body-default leading-relaxed pl-1">
+            "Should we benchmark against Yjs benchmarks here before locking the schema?"
+          </p>
+<div class="mt-2 pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs">
+<button class="text-[11px] font-label-md text-primary hover:underline">Reply...</button>
+<button class="flex items-center gap-1 text-[11px] text-outline hover:text-secondary transition-colors">
+<span class="material-symbols-outlined !text-[14px]">check_circle</span>
+<span>Resolve</span>
+</button>
+</div>
+</div>
+<!-- DOCUMENT HEADER / METADATA -->
+<article class="prose max-w-none text-on-surface">
+<!-- Document H1 -->
+<h1 class="font-headline-display text-headline-display text-on-surface tracking-tight mb-2 font-normal">
+            Q3 Project Strategy &amp; Architecture
+          </h1>
+<!-- Author & Read Metadata Subline -->
+<div class="flex flex-wrap items-center gap-2 text-xs text-outline font-label-sm border-b border-outline-variant/30 pb-6 mb-8">
+<span class="flex items-center gap-1 text-on-surface-variant font-medium">
+<span class="material-symbols-outlined !text-[14px] text-primary">schedule</span>
+              Last edited 2 mins ago by Maya Lin
+            </span>
+<span class="text-outline-variant">·</span>
+<span>1,420 words</span>
+<span class="text-outline-variant">·</span>
+<span>6 min read</span>
+<span class="text-outline-variant">·</span>
+<span class="px-1.5 py-0.5 rounded bg-surface-container-low text-[10px] font-medium text-primary">Engineering Spec</span>
+</div>
+<!-- Document Intro Paragraph -->
+<p class="font-body-editorial text-body-editorial text-on-surface-variant leading-relaxed mb-8">
+            As our engineering and design teams scale across distributed hubs, synchronous meetings have become a significant bottleneck. This strategy establishes a unified real-time collaborative workspace that bridges rapid ideation with robust offline-first synchronization.
+          </p>
+<!-- Section Heading: Core Objectives -->
+<div class="group relative flex items-center gap-2 mb-3 pt-2" id="core-objectives">
+<span class="material-symbols-outlined !text-[16px] text-outline opacity-0 group-hover:opacity-100 transition-opacity absolute -left-6 cursor-pointer">link</span>
+<h2 class="font-headline-md text-headline-md font-semibold text-on-surface tracking-tight">
+              Core Objectives
+            </h2>
+</div>
+<!-- Section Body text -->
+<p class="font-body-default text-body-default text-on-surface mb-5 leading-relaxed">
+            Our primary benchmark is absolute perceived instantaneity. Every keystroke must evaluate deterministically in local client memory within <strong>8 milliseconds</strong> while remaining resilient against sporadic network degradation. Read more in our <a class="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary" href="#">distributed runtime audit</a>.
+          </p>
+<!-- Bulleted list with live remote selection & collaborator presence cursor -->
+<ul class="space-y-3 mb-8 pl-1">
+<!-- Bullet 1 -->
+<li class="flex items-start gap-3">
+<div class="mt-2 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
+<span class="font-body-default text-body-default text-on-surface">
+                Zero-latency state convergence across distributed clients using Conflict-free Replicated Data Types (CRDTs).
+              </span>
+</li>
+<!-- Bullet 2: With remote collaborator selection and cursor -->
+<li class="flex items-start gap-3 relative">
+<div class="mt-2 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
+<div class="font-body-default text-body-default text-on-surface relative">
+<span>Frictionless offline editing with </span>
+<!-- Remote Selection Highlight by Alex Rivera -->
+<span class="selection-alex px-0.5 rounded-sm relative inline">
+                  deterministic background conflict resolution
+                  <!-- Alex's Live Remote Cursor & Floating Tag -->
+<span class="inline-block relative">
+<span class="inline-block w-[2px] h-[19px] bg-emerald-500 align-text-bottom animate-pulse"></span>
+<span class="absolute -top-5 -left-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white font-label-sm text-[10px] font-semibold tracking-wide whitespace-nowrap shadow-xs pointer-events-none">
+                      Alex
+                    </span>
+</span>
+</span>
+<span> across multi-tenant edge nodes.</span>
+</div>
+</li>
+<!-- Bullet 3 -->
+<li class="flex items-start gap-3">
+<div class="mt-2 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></div>
+<span class="font-body-default text-body-default text-on-surface">
+                Granular workspace permissions with enterprise auditability and deterministic tamper-proof revision logs.
+              </span>
+</li>
+</ul>
+<!-- Section Heading: Architecture & Next Milestones -->
+<div class="group relative flex items-center gap-2 mb-3 pt-4 border-t border-outline-variant/20" id="arch-milestones">
+<span class="material-symbols-outlined !text-[16px] text-outline opacity-0 group-hover:opacity-100 transition-opacity absolute -left-6 cursor-pointer">link</span>
+<h2 class="font-headline-md text-headline-md font-semibold text-on-surface tracking-tight">
+              Architecture &amp; Next Milestones
+            </h2>
+</div>
+<p class="font-body-default text-body-default text-on-surface mb-4 leading-relaxed">
+            The document synchronizer encapsulates local operational mutations via a compact binary vector clock protocol. Rather than round-tripping through monolithic application servers, state reconciles peer-to-peer via lightweight WebSockets.
+          </p>
+<!-- Structured Key-Value Milestone Callout Card -->
+<div class="my-6 rounded-xl border border-outline-variant/50 bg-surface-container-low/60 p-4">
+<div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+<span class="font-label-md text-xs font-semibold text-on-surface flex items-center gap-1.5">
+<span class="material-symbols-outlined !text-[16px] text-primary">alt_route</span>
+                Q3 Implementation Milestones
+              </span>
+<span class="text-[11px] font-label-sm text-outline">Sprint 14-16 Target</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3">
+<div class="p-3 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+<span class="text-[11px] font-label-sm text-outline uppercase font-semibold">M1: Vector Clock Sync</span>
+<p class="text-xs font-semibold text-on-surface mt-1">Ready for Canary</p>
+<div class="mt-2 w-full bg-surface-container rounded-full h-1.5">
+<div class="bg-secondary h-1.5 rounded-full w-full"></div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+<span class="text-[11px] font-label-sm text-outline uppercase font-semibold">M2: Offline Store</span>
+<p class="text-xs font-semibold text-on-surface mt-1">IndexedDB Persistence</p>
+<div class="mt-2 w-full bg-surface-container rounded-full h-1.5">
+<div class="bg-primary h-1.5 rounded-full w-3/4"></div>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+<span class="text-[11px] font-label-sm text-outline uppercase font-semibold">M3: Audio Huddles</span>
+<p class="text-xs font-semibold text-on-surface mt-1">WebRTC In-flight</p>
+<div class="mt-2 w-full bg-surface-container rounded-full h-1.5">
+<div class="bg-amber-500 h-1.5 rounded-full w-1/3"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Clean Mini Code Block Example -->
+<div class="rounded-lg bg-inverse-surface text-inverse-on-surface p-4 font-code-default text-code-default overflow-x-auto shadow-sm">
+<div class="flex items-center justify-between text-xs text-outline pb-2 mb-2 border-b border-outline/30 font-label-sm">
+<span>crdt_subscriber.ts</span>
+<span>TypeScript</span>
+</div>
+<pre class="leading-relaxed"><code><span class="text-inverse-primary">const</span> doc = <span class="text-inverse-primary">new</span> ScribeState({ id: <span class="text-secondary-fixed">"proj-strat-2025"</span> });
+doc.on(<span class="text-secondary-fixed">"remote-update"</span>, (delta, origin) =&gt; {
+  <span class="text-inverse-primary">if</span> (origin !== <span class="text-secondary-fixed">"local"</span>) {
+    applyDeterministicMerge(doc, delta);
+  }
+});</code></pre>
+</div>
+</article>
+</div>
+</main>
+</div>
+<!-- ==================== WORKSPACE FOOTER / STATUS BAR ==================== -->
+<footer class="fixed bottom-0 left-0 right-0 h-8 bg-surface-container-lowest border-t border-outline-variant/30 px-4 flex items-center justify-between text-xs text-outline font-label-sm z-30 select-none">
+<!-- Left telemetry -->
+<div class="flex items-center gap-4">
+<span class="hover:text-on-surface transition-colors cursor-pointer">Page 1 of 4</span>
+<span class="text-outline-variant">·</span>
+<span>1,420 words</span>
+<span class="text-outline-variant">·</span>
+<span>9,118 characters</span>
+</div>
+<!-- Center connectivity notice -->
+<div class="hidden sm:flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined !text-[14px]">cloud_done</span>
+<span class="font-medium">Offline storage ready</span>
+</div>
+<!-- Right controls: Zoom and Layout mode -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-1 cursor-pointer hover:text-on-surface">
+<span class="material-symbols-outlined !text-[14px]">remove</span>
+<span class="font-code-default">100%</span>
+<span class="material-symbols-outlined !text-[14px]">add</span>
+</div>
+<span class="text-outline-variant">·</span>
+<button class="hover:text-on-surface transition-colors" title="Toggle Fullscreen Canvas">
+<span class="material-symbols-outlined !text-[15px]">fullscreen</span>
+</button>
+</div>
+</footer>
+</body></html>

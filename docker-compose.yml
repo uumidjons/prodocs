@@ -1,0 +1,91 @@
+# Scribe — development stack (Phase 0).
+#   db     — PostgreSQL with a persistent named volume + healthcheck
+#   server — Fastify API (waits for db healthy, then migrates on boot)
+#   web    — Vite dev server, proxies /api to the server
+#
+# Usage: copy .env.example to .env, then `docker compose up --build`.
+# No reverse proxy in dev (Vite proxies /api); see docs/architecture/infrastructure.md
+# for the production topology.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-scribe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scribe_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-scribe}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-scribe} -d ${POSTGRES_DB:-scribe}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile.dev
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the database host is the `db` service.
+      DATABASE_URL: postgres://${POSTGRES_USER:-scribe}:${POSTGRES_PASSWORD:-scribe_dev_password}@db:5432/${POSTGRES_DB:-scribe}
+      # Media binaries live in a dedicated volume (ADR 0012), not the repo bind mount.
+      MEDIA_DIR: /app/var/media
+    ports:
+      - '${PORT:-4000}:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+      - server_root_nm:/app/node_modules
+      - server_app_nm:/app/apps/server/node_modules
+      - server_shared_nm:/app/packages/shared/node_modules
+      # Uploaded media binaries — persisted, and kept out of the source bind mount.
+      - server_media:/app/var/media
+    healthcheck:
+      # Readiness (not liveness): healthy only once the DB is reachable.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:4000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    restart: unless-stopped
+    environment:
+      # Vite proxies browser /api calls to the server service.
+      API_PROXY_TARGET: http://server:4000
+      WEB_PORT: '5173'
+    ports:
+      - '${WEB_PORT:-5173}:5173'
+    depends_on:
+      - server
+    volumes:
+      - ./:/app
+      - web_root_nm:/app/node_modules
+      - web_app_nm:/app/apps/web/node_modules
+      - web_shared_nm:/app/packages/shared/node_modules
+
+volumes:
+  db_data:
+  server_root_nm:
+  server_app_nm:
+  server_shared_nm:
+  server_media:
+  web_root_nm:
+  web_app_nm:
+  web_shared_nm:
