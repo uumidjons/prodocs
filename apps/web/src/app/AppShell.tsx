@@ -4,7 +4,7 @@ import { useUiStore } from '../stores/uiStore.js';
 import { Header } from './Header.js';
 import { Sidebar } from './Sidebar.js';
 
-const APP_TITLE = 'Scribe';
+const APP_TITLE = 'ProDocs';
 
 /** Tripartite workspace: header on top, collapsible sidebar, routed main area. */
 export function AppShell() {

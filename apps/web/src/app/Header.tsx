@@ -67,7 +67,7 @@ export function Header() {
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-white text-body-sm">
           <Icon name="edit_note" size={18} filled />
         </span>
-        Scribe
+        ProDocs
       </button>
 
       {/* The open document's title lives in the header — its identity, not body

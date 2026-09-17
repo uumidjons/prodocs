@@ -28,12 +28,12 @@ export function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl px-margin py-10">
       <h1 className="font-display text-headline-lg text-ink">Settings</h1>
-      <p className="mt-1 text-body-default text-ink-2">Personalize your Scribe workspace.</p>
+      <p className="mt-1 text-body-default text-ink-2">Personalize your ProDocs workspace.</p>
 
       <section className="mt-8 rounded-lg border border-border bg-sheet p-6 shadow-sm">
         <h2 className="font-display text-headline-sm text-ink">Appearance</h2>
         <p className="mt-1 text-body-sm text-ink-2">
-          Choose how Scribe looks. This preference is saved on this browser.
+          Choose how ProDocs looks. This preference is saved on this browser.
         </p>
 
         <div

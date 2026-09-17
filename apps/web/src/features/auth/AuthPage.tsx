@@ -43,7 +43,7 @@ export function AuthPage() {
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-white">
             <Icon name="edit_note" size={22} filled />
           </span>
-          <span className="font-display text-2xl text-ink">Scribe</span>
+          <span className="font-display text-2xl text-ink">ProDocs</span>
         </div>
 
         <div className="rounded-lg border border-border bg-sheet p-6 shadow-card">
@@ -53,7 +53,7 @@ export function AuthPage() {
           <p className="mb-6 text-body-default text-ink-2">
             {mode === 'login'
               ? 'Sign in to your workspace.'
-              : 'Start writing and collaborating in Scribe.'}
+              : 'Start writing and collaborating in ProDocs.'}
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">

@@ -242,7 +242,7 @@ test('new document dialog defaults to "Untitled document" and creates with a cus
 
   // Title agrees everywhere: header, browser title, and the document list.
   await expect(page.getByRole('textbox', { name: /document title/i })).toHaveValue('Project Notes');
-  await expect.poll(() => page.title()).toContain('Project Notes - Scribe');
+  await expect.poll(() => page.title()).toContain('Project Notes - ProDocs');
   await page.goto('/');
   await expect(page.getByText('Project Notes', { exact: true }).first()).toBeVisible();
 

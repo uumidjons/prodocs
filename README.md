@@ -1,4 +1,4 @@
-# Scribe
+# ProDocs
 
 A web-based **collaborative rich-text document editor** — inspired by the idea of Google
 Docs, but with its own visual identity ("Editorial Precision", see [`UI/DESIGN.md`](UI/DESIGN.md))

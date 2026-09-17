@@ -258,8 +258,8 @@ export function buildDocx(doc: JSONContent, media: DocxMediaMap = new Map()): Do
   };
 
   return new Document({
-    creator: 'Scribe',
-    title: 'Scribe document export',
+    creator: 'ProDocs',
+    title: 'ProDocs document export',
     numbering: {
       config: [
         {

@@ -468,8 +468,8 @@ export async function exportDocumentToPdf(
 ): Promise<Uint8Array> {
   const model = toExportDocument(doc);
   const pdf = await PDFDocument.create();
-  pdf.setCreator('Scribe');
-  pdf.setProducer('Scribe');
+  pdf.setCreator('ProDocs');
+  pdf.setProducer('ProDocs');
   const fonts: Fonts = {
     regular: await pdf.embedFont(StandardFonts.TimesRoman),
     bold: await pdf.embedFont(StandardFonts.TimesRomanBold),

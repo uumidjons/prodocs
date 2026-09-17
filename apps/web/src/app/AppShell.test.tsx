@@ -39,24 +39,24 @@ function renderShell() {
 describe('AppShell browser title', () => {
   it('is just the app name with no document open', async () => {
     renderShell();
-    await waitFor(() => expect(document.title).toBe('Scribe'));
+    await waitFor(() => expect(document.title).toBe('ProDocs'));
   });
 
   it('reflects the active document title and updates when it changes', async () => {
     renderShell();
     useUiStore.getState().setActiveDocument({ id: 'd1', role: 'owner', title: 'Project Brief' });
-    await waitFor(() => expect(document.title).toBe('Project Brief - Scribe'));
+    await waitFor(() => expect(document.title).toBe('Project Brief - ProDocs'));
 
     useUiStore.getState().setActiveDocumentTitle('Renamed');
-    await waitFor(() => expect(document.title).toBe('Renamed - Scribe'));
+    await waitFor(() => expect(document.title).toBe('Renamed - ProDocs'));
 
     useUiStore.getState().setActiveDocument(null);
-    await waitFor(() => expect(document.title).toBe('Scribe'));
+    await waitFor(() => expect(document.title).toBe('ProDocs'));
   });
 
   it('falls back to "Untitled document" for an empty title', async () => {
     renderShell();
     useUiStore.getState().setActiveDocument({ id: 'd1', role: 'owner', title: '' });
-    await waitFor(() => expect(document.title).toBe('Untitled document - Scribe'));
+    await waitFor(() => expect(document.title).toBe('Untitled document - ProDocs'));
   });
 });

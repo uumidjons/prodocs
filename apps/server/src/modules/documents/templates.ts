@@ -68,7 +68,7 @@ async function ensureSystemUser(): Promise<void> {
   const passwordHash = await hashPassword(`system-${crypto.randomUUID()}-${crypto.randomUUID()}`);
   await pool.query(
     `INSERT INTO users (id, email, display_name, color, password_hash)
-     VALUES ($1, $2, 'Scribe Templates', '#3B49DF', $3)
+     VALUES ($1, $2, 'ProDocs Templates', '#3B49DF', $3)
      ON CONFLICT (id) DO NOTHING`,
     [SYSTEM_USER_ID, SYSTEM_USER_EMAIL, passwordHash],
   );

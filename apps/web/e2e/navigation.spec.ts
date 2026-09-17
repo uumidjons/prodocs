@@ -16,19 +16,19 @@ test('documents, recent, templates, trash, theme, profile, and tab title', async
 
   // --- Create a blank document; it appears in Documents. ---
   await createDocumentUI(page);
-  await expect(page).toHaveTitle('Untitled document - Scribe');
+  await expect(page).toHaveTitle('Untitled document - ProDocs');
 
   // Rename the document; the browser tab title follows the live title.
   const title = page.getByLabel('Document title');
   await title.click();
   await title.fill('Quarterly Plan');
   await title.press('Enter');
-  await expect(page).toHaveTitle('Quarterly Plan - Scribe');
+  await expect(page).toHaveTitle('Quarterly Plan - ProDocs');
 
   // Back to Documents — the tab title returns to the app name and the doc is listed.
   await page.getByRole('link', { name: 'Documents' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page).toHaveTitle('Scribe');
+  await expect(page).toHaveTitle('ProDocs');
   await expect(page.getByText('Quarterly Plan')).toBeVisible();
 
   // --- Recent: the opened document is present. ---
@@ -47,7 +47,7 @@ test('documents, recent, templates, trash, theme, profile, and tab title', async
     .getByRole('button', { name: /Use template/ })
     .click();
   await page.waitForURL(/\/d\/[0-9a-f-]{36}/);
-  await expect(page).toHaveTitle('Meeting Notes - Scribe');
+  await expect(page).toHaveTitle('Meeting Notes - ProDocs');
 
   // The template instance is a normal document (Documents), never a template.
   await page.getByRole('link', { name: 'Documents' }).click();
