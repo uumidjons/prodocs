@@ -1,94 +1,395 @@
 # ProDocs
 
-A web-based **collaborative rich-text document editor** — inspired by the idea of Google
-Docs, but with its own visual identity ("Editorial Precision", see [`UI/DESIGN.md`](UI/DESIGN.md))
-and its own UX. It is built around the hard requirements: **real-time collaboration,
-offline editing, and conflict-free merge**.
+**ProDocs is a web-based collaborative document editor** — a place where several people
+can open the same document and write in it together, in real time, from different browsers
+or computers. It is inspired by the _idea_ of Google Docs (shared, live-editing documents)
+but has its own visual identity ("Editorial Precision", see [`UI/DESIGN.md`](UI/DESIGN.md))
+and its own architecture.
 
-> **Current status: Phase 5 — Sharing & final product polish.**
-> Builds on the Phase 4 hardened system and closes the last product gap: a real user-facing
-> **Share flow** — the owner adds registered users, assigns Editor/Viewer, changes roles, and
-> removes members — backed by a **server-side membership API** (list/add/change-role/remove)
-> and a minimal user search, all authorized against the existing `memberships` table (the
-> frontend never supplies a trusted role). The dashboard now separates documents you own from
-> those shared with you. This adds **no** new infrastructure: no Redis, no new service, no CRDT
-> change — Yjs remains the sole conflict-resolution mechanism, access tokens stay memory-only,
-> refresh tokens stay `httpOnly`, and there is no LWW / custom merge / whole-document
-> replacement. See the [sharing demo](#demonstrating-sharing-phase-5), the
-> [collaboration demo](#demonstrating-real-time-collaboration), the
-> [offline demo](#demonstrating-offline-editing--conflict-free-merge-phase-3),
-> [`docs/architecture/security.md`](docs/architecture/security.md), and [Roadmap](#roadmap).
+### What it does, in one sentence
 
-The architecture that drives all of this is documented in
-[`docs/architecture/`](docs/architecture/README.md) and is the source of truth.
+You write in a rich-text document; anyone you share it with sees your changes appear almost
+instantly; and if your internet drops, you can keep writing — your work is saved locally and
+merges back in cleanly when you reconnect, **without overwriting anyone else's edits**.
+
+![ProDocs editor: an A4 document with headings, a bullet list, and a task checklist, above the formatting toolbar, with a "Synced to cloud" status and Share/Export controls](docs/screenshots/editor.jpg)
+
+This project was built to satisfy a specific technical assignment (a "Google Docs–style"
+full-stack editor). The three things the assignment cares about most are **real-time
+collaboration**, **offline editing with correct merging**, and an **original, coherent
+design** — so those are the three things this README explains most carefully.
 
 ---
 
-## What's implemented in Phase 0
+## Table of contents
 
-- **pnpm monorepo** — `apps/web` (frontend), `apps/server` (backend), `packages/shared`
-  (shared TypeScript contracts). Strict TypeScript everywhere.
-- **Dockerized dev stack** — `web`, `server`, and `postgres` via Docker Compose; Postgres
-  on a persistent named volume with a healthcheck; the backend waits for DB readiness and
-  runs migrations on boot.
-- **Backend (Fastify)** — validated config, structured logging (secrets redacted),
-  `/health` (liveness) + `/ready` (readiness), consistent error envelope, rate limiting.
-- **Authentication** — email + password with **Argon2id**, short-lived JWT access token
-  (in memory on the client) + **httpOnly refresh cookie**, register / login / refresh /
-  logout / current-user.
-- **Authorization** — document `owner`/`editor`/`viewer` roles, membership checks on every
-  document route, **404-on-forbidden** to prevent access enumeration.
-- **Document metadata API** — create / list / get / rename / delete (metadata only; the
-  collaborative _content_ will be Yjs in a later phase — it is **not** stored as HTML).
-- **Frontend (React + Vite + Tailwind + Zustand)** — application shell (header, sidebar,
-  routed document area), auth screens, document list, a document view with a live/persisted
-  title and a **placeholder** where the editor canvas will mount. Design tokens from
-  `UI/DESIGN.md` are encoded into Tailwind.
-- **Tests** — unit (config, password hashing, JWT, roles, UI primitives) and integration
-  (full HTTP API against a real Postgres, incl. auth flows and 404-on-forbidden).
-
-**Not in Phase 0 (later phases):** Yjs, Hocuspocus, WebSocket document sync, `y-indexeddb`,
-awareness/presence, remote cursors, CRDT persistence (update log / snapshots), offline
-merge. See [`docs/architecture/`](docs/architecture/README.md).
-
-## Technology stack
-
-| Layer                  | Choice                                                                      |
-| ---------------------- | --------------------------------------------------------------------------- |
-| Frontend               | React 18, TypeScript, Vite, Tailwind CSS, Zustand, React Router             |
-| Backend                | Node.js 22, TypeScript, Fastify, `pg` (node-postgres)                       |
-| Auth                   | Argon2id (`@node-rs/argon2`), JWT (`jsonwebtoken`), httpOnly refresh cookie |
-| Shared                 | `@scribe/shared` — DTOs, role logic, Zod validation schemas                 |
-| Database               | PostgreSQL 16                                                               |
-| Tooling                | pnpm workspaces, ESLint, Prettier, Vitest, Docker Compose                   |
-| Planned (later phases) | Yjs, Tiptap/ProseMirror, Hocuspocus, y-indexeddb                            |
-
-## Repository structure
-
-```
-apps/
-  web/       # React + Vite frontend (app shell, ui/ design system, api/, stores/, features/)
-  server/    # Fastify backend (config/, db/ + migrations, http/, modules/{auth,users,documents,memberships})
-packages/
-  shared/    # @scribe/shared — DTOs, roles, Zod schemas (imported by both sides)
-docs/architecture/   # architecture docs + ADRs (source of truth)
-UI/          # visual source of truth: DESIGN.md, screen.png, code.html
-docker-compose.yml   # dev stack: web + server + postgres
-.env.example         # environment template (copy to .env)
-```
-
-See [`docs/architecture/project-structure.md`](docs/architecture/project-structure.md) for
-the rationale (note: the Compose file lives at the repo root for one-command startup).
+- [Demo & video](#demo--video)
+- [Why ProDocs](#why-prodocs)
+- [Assignment requirements at a glance](#assignment-requirements-at-a-glance)
+- [Features: core vs. additional](#features-core-vs-additional)
+- [How real-time collaboration works](#how-real-time-collaboration-works)
+- [How offline editing works](#how-offline-editing-works-the-important-part)
+- [Architecture](#architecture)
+- [Technology choices (and why)](#technology-choices-and-why)
+- [Data & collaboration model](#data--collaboration-model)
+- [Permissions & security](#permissions--security)
+- [Running locally](#running-locally)
+- [Testing](#testing)
+- [Submission demo script (for the video)](#submission-demo-script-for-the-video)
+- [Project structure](#project-structure)
+- [Known limitations](#known-limitations)
 
 ---
 
-## Getting started
+## Demo & video
+
+There is **no hosted live demo** — ProDocs is intended to be **run locally** with Docker
+(one command; see [Running locally](#running-locally)). Real-time collaboration and offline
+merge are easiest to appreciate with two browser windows on your own machine.
+
+A **3–5 minute submission video** demonstrating two-user editing and the offline scenario is
+part of the assignment. When it is recorded, its link goes here:
+
+> **Demo video:** _add the link here once recorded_ (see the
+> [demo script](#submission-demo-script-for-the-video) below for exactly what it shows).
+
+A few screenshots of the real running application appear next to the relevant sections below.
+They are still, though — the collaboration and offline behavior are dynamic and are best seen
+live or in the video. The design reference used to build the UI lives in
+[`UI/DESIGN.md`](UI/DESIGN.md).
+
+---
+
+## Why ProDocs
+
+The assignment asks for a document editor "in the spirit of Google Docs," with the emphasis
+explicitly on four things:
+
+- **Collaborative documents** — more than one person editing the same document.
+- **Real-time editing** — changes appear almost immediately, with no page reload.
+- **Offline work** — you can keep editing with no internet, and it syncs later.
+- **Conflict-free synchronization** — when edits made independently come back together, they
+  _merge_ rather than one side silently winning and erasing the other.
+- **An original UI** — not a Google Docs clone, not an untouched UI-framework default theme,
+  but a coherent, deliberate visual system.
+
+ProDocs is built around exactly these priorities.
+
+---
+
+## Assignment requirements at a glance
+
+Every claim below is backed by code and tests in this repository (see the linked files and the
+[Testing](#testing) section).
+
+| Requirement (from the assignment)                       | How ProDocs implements it                                                                                                                             |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Basic rich-text editor** (bold, italic, headings, lists) | Tiptap/ProseMirror editor with bold, italic, H1–H3, and bullet/numbered lists — plus more (see below).                                            |
+| **Real-time collaboration** (2+ users, live, no reload) | Yjs + Hocuspocus over a WebSocket. Multiple users on the same document see each other's edits appear live, with no page reload.                       |
+| **Offline editing** (edit offline, sync & merge later)  | Each browser keeps a local copy of the document in IndexedDB. You keep editing while offline; on reconnect, Yjs merges local and remote edits.       |
+| **No data loss / no overwriting others' edits**         | Merging uses CRDT semantics (explained below), never "whole-document replacement" or "last write wins." Verified by an explicit no-last-write-wins test. |
+| **Participant list / cursors** (who's here, name/color) | Live presence stack in the header; each collaborator shows a colored remote cursor and text selection tagged with their name.                        |
+| **Document persistence** (any database)                 | PostgreSQL stores the document's change history and periodic snapshots (as binary Yjs data — never HTML).                                            |
+| **Original, coherent design**                           | A custom "Editorial Precision" design system: one palette, one icon style, deliberate spacing/typography, and an A4 document surface.                 |
+| **README + startup + architecture + why-sync**          | This document, plus the architecture set in [`docs/architecture/`](docs/architecture/README.md).                                                     |
+| **3–5 min demo video**                                  | To be recorded; script in [Submission demo script](#submission-demo-script-for-the-video).                                                           |
+
+---
+
+## Features: core vs. additional
+
+The assignment values **design and architectural consistency over feature count**, so the
+mandatory requirements come first. Everything under "Additional" is real and in the
+repository, but it is _beyond_ the required MVP — included as product polish, not to inflate
+the list.
+
+![ProDocs workspace: a sidebar with Documents, Recent, Templates, Shared with me, and Trash, and a main area grouping documents into "Owned by me" and "Shared with me"](docs/screenshots/workspace.jpg)
+
+### Core assignment features
+
+- **Rich-text editing** — bold, italic, headings (H1–H3), bullet lists, and numbered lists.
+- **Real-time multi-user editing** — live, no reload, across separate browsers/profiles.
+- **Offline editing + conflict-free merge** — keep writing offline; reconnect merges cleanly.
+- **Presence** — see who is in the document (name + color) and their live cursor/selection.
+- **Persistence** — documents survive reloads and server restarts (PostgreSQL-backed).
+
+### Additional features (beyond the MVP)
+
+These exist in the codebase but are **not** required by the assignment:
+
+- **More formatting** — underline, strikethrough, inline `code`, blockquote, task checklists
+  (with checked state), text alignment, Tab/Shift-Tab indentation, and safe hyperlinks
+  (dangerous URL schemes are rejected).
+- **Document sharing & roles** — an owner can add registered users as **Editor** or
+  **Viewer**, change roles, and remove members (viewers get a read-only editor).
+- **A4 pagination & manual page breaks** — the document is laid out as A4 pages;
+  Ctrl/Cmd+Enter inserts a real page break.
+- **Templates** and **workspace navigation** — a template gallery, plus Recent, Shared-with-me,
+  and Trash (soft-delete) views.
+- **Export to PDF and Word (.docx)** — generated entirely in the browser from the current
+  document, preserving formatting and page breaks; works offline.
+- **Images** — upload, paste, or drag-drop images; resize and position them. The image
+  _binary_ is stored server-side and referenced by id — it is never put inside the collaborative
+  document data.
+- **Inline comments** — anchored to the text, collaborative, and offline-capable.
+- **Light/dark theme** and a persistent profile menu.
+- **Security hardening** — refresh-token rotation with reuse detection, request/WebSocket size
+  caps, and rate limiting.
+
+---
+
+## How real-time collaboration works
+
+![Two people in the same ProDocs document: the header shows both participants' avatars, and a collaborator's live text selection is tagged with their name ("Maya Rivera") in their own color](docs/screenshots/collaboration.jpg)
+
+### In plain language
+
+Imagine two people typing in the same document at the same time. The naive approach — "save
+the whole document, and whoever saved last wins" — would constantly erase people's work.
+ProDocs never does that.
+
+Instead, ProDocs uses **Yjs**, a collaboration library based on **CRDTs**
+(Conflict-free Replicated Data Types). In simple terms: instead of sending the _whole
+document_ back and forth, each editor sends tiny, self-describing _change operations_ ("insert
+this character here", "make this word bold"). Yjs is designed so that these changes can be
+applied in any order on any copy of the document and everyone still ends up with the **same
+result** — and, crucially, two people's changes **combine** instead of one replacing the other.
+
+Those change operations travel between users over a **WebSocket** (a always-open, two-way
+connection between the browser and the server, unlike normal web requests that open, respond,
+and close). The server piece that relays and stores them is **Hocuspocus**, a ready-made
+collaboration server for Yjs.
+
+So the flow for a single keystroke is:
+
+```
+You type
+  → the Tiptap/ProseMirror editor in your browser
+    → your local Yjs document records the change
+      → sent over the WebSocket to the Hocuspocus server
+        → relayed to every other collaborator's Yjs document
+          → their editor re-renders with your change — no reload
+```
+
+The same thing happens in reverse for everyone else's edits, continuously, in both directions.
+
+### For developers
+
+- The editor is **Tiptap** (a wrapper over **ProseMirror**). The document schema
+  (`packages/shared/src/editor.ts`, `buildBaseExtensions()`) is defined **once** in the shared
+  package so the browser editor and the server use byte-identical node/mark definitions.
+- `@tiptap/extension-collaboration` binds the editor to a `Y.Doc`
+  (`apps/web/src/features/editor/extensions.ts`). Local edit history is delegated to Yjs's
+  per-user `UndoManager` (StarterKit history is disabled) so undo/redo is collaboration-aware.
+- Transport is `@hocuspocus/provider` on the client (`useCollaboration.ts`) talking to a
+  Hocuspocus server that is **attached to the same Fastify process** as the HTTP API
+  (`apps/server/src/collab/`). It is a **modular monolith**: one process, one port, HTTP and
+  WebSocket sharing the backend — no separate collaboration service and no Redis.
+- Presence uses Yjs **awareness** (`@tiptap/extension-collaboration-cursor`). The awareness
+  payload is identity-only (stable id, display name, collaboration color) — no email or tokens
+  are broadcast. Remote carets/selections are rendered by
+  `apps/web/src/features/editor/collabCursor.ts`.
+
+There is **no polling, no last-write-wins, and no whole-document replacement** anywhere in the
+sync path.
+
+---
+
+## How offline editing works (the important part)
+
+The assignment specifically flags the offline scenario as the part most projects do only
+superficially, and says it will get "particularly close attention." So here is exactly how it
+works and what it does — and does not — guarantee.
+
+### In plain language
+
+1. **Your document lives on your own device, too.** As you edit, ProDocs continuously saves a
+   copy of the document in your browser's local storage (a browser database called
+   **IndexedDB**). This happens whether or not you are online.
+2. **You can keep editing with no internet.** If your connection drops, the editor does **not**
+   lock or go read-only. You keep typing exactly as before; your changes are saved locally.
+   The status indicator honestly switches to "Offline — saved locally."
+3. **Meanwhile, other people can keep editing online.** Their changes are saved on the server.
+4. **When you reconnect, the two sides reconcile.** Your browser and the server compare what
+   each of them has and exchange only the **missing** changes (this comparison is called a
+   _state-vector handshake_ — essentially "here's what I already have; send me the rest").
+5. **The changes merge — they don't overwrite.** Because everything is expressed as Yjs CRDT
+   operations, your offline edits and the other people's online edits are **combined**. Nobody's
+   paragraph is thrown away because someone else saved more recently.
+
+### For developers
+
+- Local persistence is `y-indexeddb` (`IndexeddbPersistence` in
+  `apps/web/src/features/collaboration/useCollaboration.ts`), created **independently of the
+  WebSocket**. It loads the last-known content before the socket connects (offline-first load)
+  and persists every update, so offline edits survive a reload once the network is back.
+- On reconnect, the Hocuspocus provider performs the Yjs sync-step (state-vector) handshake and
+  applies only the delta in each direction. There is **no `setContent` / no document
+  replacement** — doing so would clobber concurrent edits and is deliberately avoided.
+- The server rebuilds document state from PostgreSQL after a restart (snapshot + update-log
+  replay), then the same handshake reconciles it with each client.
+- The sync **status is derived truthfully** (`connectionState.ts`): it distinguishes _offline_
+  (the browser reports no network — a reconnect can't succeed yet) from _reconnecting_ (network
+  is up but the socket is momentarily down). Editability is a **role** fact, never a transport
+  fact — being offline never makes the editor read-only.
+
+### An honest scope note
+
+- **Offline document _creation_ is intentionally not supported** — a brand-new document needs
+  a server-issued id and a membership row first. This is flagged in the UI, not silently faked.
+- Reloading the page while **still offline** would additionally require a service-worker
+  app-shell cache, which is out of MVP scope. Offline _edits_ survive a reload once the network
+  returns; the offline app _shell_ is listed under [Known limitations](#known-limitations).
+- We do **not** claim mathematically "guaranteed zero data loss" beyond what CRDT semantics and
+  the test suite demonstrate. What we _do_ claim — and test — is: concurrent and offline edits
+  **merge** rather than overwrite, with an explicit no-last-write-wins assertion (see
+  [Testing](#testing)).
+
+---
+
+## Architecture
+
+### The big picture (plain language)
+
+```
+        Your browser                         Another user's browser
+  ┌───────────────────────┐              ┌───────────────────────┐
+  │  React UI             │              │  React UI             │
+  │  Tiptap / ProseMirror │   (editor)   │  Tiptap / ProseMirror │
+  │  Yjs document         │◄──────────┐  │  Yjs document         │
+  │  IndexedDB (local     │           │  │  IndexedDB (local     │
+  │   offline copy)       │           │  │   offline copy)       │
+  └──────────┬────────────┘           │  └──────────┬────────────┘
+             │  WebSocket             │             │  WebSocket
+             ▼                        │             ▼
+        ┌──────────────────────────────────────────────────┐
+        │  Backend — one Node.js / Fastify process          │
+        │   • HTTP API (auth, documents, sharing, media)    │
+        │   • Hocuspocus collaboration server (WebSocket)   │
+        └───────────────────────────┬──────────────────────┘
+                                     ▼
+                              ┌──────────────┐
+                              │  PostgreSQL  │  document change-log
+                              │              │  + snapshots + metadata
+                              └──────────────┘
+                              (uploaded image files → disk/volume)
+```
+
+- **The browser** runs the UI, the editor, the live Yjs copy of the document, and a local
+  offline copy in IndexedDB.
+- **The backend** is a single process that serves both the normal API (logging in, listing
+  documents, sharing, image upload) **and** the real-time collaboration WebSocket. Keeping them
+  together means access rules are enforced the same way for both.
+- **PostgreSQL** is the long-term home of every document — stored as its change history plus
+  periodic compact snapshots, so a document can always be rebuilt exactly.
+- **Uploaded images** are stored as files (in a disk volume), referenced from documents by id.
+
+### For developers
+
+- **Monorepo** (pnpm workspaces): `apps/web` (React + Vite), `apps/server` (Fastify),
+  `packages/shared` (TypeScript contracts, the editor/CRDT schema, roles, Zod validation,
+  export model). Strict TypeScript throughout.
+- **Backend**: Fastify with validated config, structured secret-redacting logging, `/health`
+  (liveness) and `/ready` (readiness), a consistent error envelope, and rate limiting. The
+  Hocuspocus server is attached to the same HTTP server (`apps/server/src/collab/attach.ts`).
+- **Persistence model** (`apps/server/src/collab/persistence.ts`,
+  `apps/server/src/modules/persistence/repo.ts`): `onLoadDocument` rebuilds a `Y.Doc` from the
+  latest snapshot + the tail of the update log (seeding a blank doc once if new); `onChange`
+  appends each binary update (the durability write); `onStoreDocument` compacts — writes a fresh
+  snapshot and truncates the folded updates in one transaction. **Content is only ever binary
+  Yjs state on the server — never HTML or ProseMirror JSON.**
+- The full architecture set (system overview, realtime, offline sync, persistence, security,
+  data model, ADRs) is in [`docs/architecture/`](docs/architecture/README.md) and is the
+  source of truth for design rationale.
+
+---
+
+## Technology choices (and why)
+
+The assignment explicitly asks _why_ these sync/offline tools were chosen. Short version:
+almost every choice is "use a proven, correct library for the hard part, and keep our own code
+small and honest."
+
+| Technology                | Why it was chosen                                                                                                                                                                              |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Yjs (CRDT)**            | The assignment says to use an existing CRDT/OT library and _not_ to write one from scratch. Yjs is mature, fast, and battle-tested; its CRDT model is what makes concurrent and offline edits **merge** instead of overwriting. |
+| **Tiptap / ProseMirror** | A robust rich-text model with a well-defined schema, and first-class Yjs integration (`y-prosemirror`). ProseMirror guarantees the document is always structurally valid.                     |
+| **Hocuspocus**            | The reference Yjs collaboration server: it handles the WebSocket sync protocol, awareness, and lifecycle hooks for persistence, so we don't hand-roll the wire protocol. It embeds directly in our Fastify process. |
+| **y-indexeddb**           | The standard way to persist a `Y.Doc` in the browser. This is what makes **offline editing** and offline durability work, and it plugs into the same Yjs update stream as the network transport. |
+| **PostgreSQL**            | The assignment allows any database. A relational DB fits users/documents/memberships cleanly, and storing the Yjs change-log + snapshots as `bytea` gives durable, reconstructable documents.  |
+| **React + Vite**          | Mainstream, fast component model and dev server; large ecosystem; pairs naturally with Tiptap's React bindings.                                                                              |
+| **Node.js + Fastify**    | Lets the HTTP API and the (Node-based) Hocuspocus server share **one** process and language with the frontend. Fastify is fast, schema-friendly, and has mature auth/cors/rate-limit plugins. |
+| **Not a custom OT/CRDT**  | Writing a correct OT/CRDT algorithm from scratch is exactly what the assignment says is unnecessary and not a plus. Using Yjs is the intended, responsible choice.                            |
+
+More detail and the trade-offs are recorded as ADRs under
+[`docs/architecture/adr/`](docs/architecture/adr/README.md).
+
+---
+
+## Data & collaboration model
+
+- **The Yjs document is the single source of truth for content.** All rich text, formatting,
+  page breaks, task-checkbox state, comment anchors, and image _references_ live inside the
+  `Y.Doc`. React/Zustand state and `localStorage` are never used to hold document content.
+- **Updates & persistence.** Every edit is a binary Yjs update. The server keeps an append-only
+  update log plus periodic snapshots (compaction folds the log into a snapshot). This is stored
+  in PostgreSQL as binary data.
+- **Presence/awareness** is ephemeral (it lives only while you're connected) and is separate
+  from document content — it carries just identity + cursor position, and disappears when you
+  disconnect.
+- **Comments** are stored as a Yjs `comment` mark plus a comments `Y.Map` in the same `Y.Doc`,
+  so anchors move with the text, collaborate, and work offline. Comments are excluded from
+  export.
+- **Images**: the uploaded **binary is stored server-side** (a disk volume) with a content-
+  sniffed type check and a random UUID key; the document only stores a `media` node with that
+  id. **Binary image data is never placed inside Yjs or PostgreSQL's document tables.**
+
+---
+
+## Permissions & security
+
+![ProDocs "Share document" dialog: a search box to add people by name or email, a role selector, and a "People with access" list showing an Owner, an Editor, and a Viewer](docs/screenshots/sharing.jpg)
+
+- **Authentication**: email + password hashed with **Argon2id**. Sessions use a short-lived
+  JWT access token (held in memory in the browser) plus an **httpOnly refresh cookie**
+  (register / login / refresh / logout / current-user). Refresh tokens are rotated, with reuse
+  detection and session revocation.
+- **Authorization**: each document has `owner` / `editor` / `viewer` roles in a `memberships`
+  table, which is the **single source of truth** for access. Forbidden access returns **404**
+  (not 403) so document ids can't be enumerated by guessing.
+- **The WebSocket reuses the same auth primitives as the HTTP API**
+  (`apps/server/src/collab/auth.ts`): the socket authenticates with the access token and its
+  membership is checked before any document loads. REST and WebSocket therefore can't enforce
+  access differently.
+- **Live permission changes are handled safely.** When an owner changes or revokes someone's
+  role, that user's live socket is dropped with a dedicated close code; the client then
+  **rebuilds its session against a fresh `Y.Doc`, purges that document's local IndexedDB copy,
+  and re-syncs only the authoritative server state** — closing the path by which stale or
+  now-unauthorized local edits could otherwise "resurrect." Viewers' local caches are likewise
+  purged on load, since a viewer can never legitimately hold local-only edits. (Editors keep
+  full offline durability.)
+- **Upload validation**: images are content-sniffed (not trusted by extension), size-capped,
+  and stored under safe UUID keys.
+- **Abuse limits**: per-IP and per-user rate limiting, an HTTP body size cap, and a WebSocket
+  frame size cap.
+
+Why this matters for a collaborative editor specifically: offline-capable clients hold their
+own copy of the document, so the security-critical question isn't just "can you connect" but
+"can a client's _local_ state re-introduce edits it's no longer allowed to make" — which is
+exactly the resurrection path the permission-change handling above closes.
+
+See [`docs/architecture/security.md`](docs/architecture/security.md) for the full model and the
+development-vs-production notes at the end of this README.
+
+---
+
+## Running locally
 
 ### Prerequisites
 
-- **Docker** + **Docker Compose v2** (the only hard requirement to run the stack).
-- Optionally **Node.js ≥ 20** and **pnpm ≥ 9** for host-side tooling (lint/typecheck/tests
-  in your editor). You do **not** need to install PostgreSQL — Compose provides it.
+- **Docker** + **Docker Compose v2** — the only hard requirement to run the whole stack.
+- _(Optional)_ **Node.js ≥ 20** and **pnpm ≥ 9** — only if you want to run lint/typecheck/tests
+  directly on your host. You do **not** need to install PostgreSQL; Compose provides it.
 
 ### 1. Configure environment
 
@@ -96,304 +397,261 @@ the rationale (note: the Compose file lives at the repo root for one-command sta
 cp .env.example .env
 ```
 
-The defaults are safe for local development. If host port **5432** is already in use, set
-`POSTGRES_PORT` to something free (e.g. `5433`). **Never commit `.env`** or use the default
-secrets in production.
+The defaults are safe for local development. If host port **5432** is already taken, set
+`POSTGRES_PORT` in `.env` to something free (e.g. `5433`). **Never commit `.env`** or reuse the
+example secrets in production.
 
-### 2. (Optional) install for local tooling
-
-```bash
-pnpm install
-```
-
-Only needed for running lint/typecheck/tests directly on the host. The Docker images
-install their own dependencies, so this is not required just to run the app.
-
-### 3. Start the stack
+### 2. Start the stack
 
 ```bash
 docker compose up --build
 ```
 
-Then open:
+This starts three services — `db` (PostgreSQL), `server` (Fastify + collaboration WebSocket),
+and `web` (Vite dev server). The backend waits for the database, runs migrations
+automatically, then serves the API. Then open:
 
-- **Frontend:** http://localhost:5173
-- **Backend health:** http://localhost:4000/health
+- **App (frontend):** http://localhost:5173
+- **Backend liveness:** http://localhost:4000/health
 - **Backend readiness:** http://localhost:4000/ready
 
-The backend waits for Postgres, applies migrations automatically, and serves the API. The
-frontend's dev server proxies both `/api` (HTTP) and `/collab` (the collaboration WebSocket) to
-the backend, so the browser talks same-origin. HTTP and WebSocket share **one** backend process
-and port (a modular monolith — no separate collaboration service, no Redis).
+The Vite dev server proxies both `/api` (HTTP) and `/collab` (the collaboration WebSocket) to
+the backend, so the browser talks same-origin.
 
----
+### 3. Try collaboration
 
-## Demonstrating sharing (Phase 5)
+1. Sign up as user **A** in a normal window.
+2. Open a **separate browser profile or an incognito window** (a plain second tab shares the
+   session cookie, so it would be the _same_ user) and sign up as user **B**.
+3. As A, open a document and click **Share**; add B as **Editor**. B sees it under
+   **Shared with me**.
+4. Open the document in both windows and type — changes appear live in both, with remote
+   cursors.
 
-Sharing is a real, owner-only flow enforced server-side (the `memberships` table is the
-authorization source of truth; the frontend never supplies a trusted role):
-
-1. **Start the stack** and sign up two users A and B (two separate profiles/incognito windows,
-   as above).
-2. **As A, open a document and click Share.** The dialog lists current members (you, marked
-   **Owner**). Search for B by name or email, pick **Editor** or **Viewer**, and add them.
-3. **As B, reload the dashboard.** The document appears under **Shared with me** with B's role
-   badge. Open it: an **Editor** can edit live; a **Viewer** sees live edits but the editor is
-   read-only (the server rejects viewer writes).
-4. **Change or revoke access.** Back as A, reopen **Share** to change B's role or remove them.
-   A role/removal change is enforced immediately over REST and applies to B's live session on
-   its next (re)connect (reload) — the documented single-instance behavior; an already-open
-   socket is not force-closed.
-
-Only the owner sees management controls — an editor or viewer opening Share sees a read-only
-roster and "Only the owner can manage sharing." Owner/editor/viewer semantics, the owner
-invariant, cross-document IDOR rejection, and input validation are covered by
-`apps/server/test/integration/sharing.test.ts` and the multi-user Playwright flow
-`apps/web/e2e/sharing.spec.ts`.
-
-## Demonstrating real-time collaboration
-
-Collaboration is a real Yjs + Hocuspocus WebSocket stack — edits propagate live and converge
-via CRDT (no polling, no whole-document replacement). To see two users editing together:
-
-1. **Start the stack:** `docker compose up --build`, then open http://localhost:5173.
-2. **Create two users.** In a normal window, sign up as user A (e.g. `a@example.com`). Open a
-   **second, separate browser profile or an incognito window** (a plain second tab shares the
-   same session cookie, so it would be the _same_ user) and sign up as user B.
-3. **Share the document (real UI, Phase 5).** As user A, open the document and click **Share**
-   in the header. Search for user B by name or email, choose **Editor** (or **Viewer** for
-   read-only), and add them. B now sees the document under **Shared with me** on the dashboard.
-   (Membership remains the access-control source of truth; the Share dialog just calls the
-   owner-only membership API — see [Demonstrating sharing](#demonstrating-sharing-phase-5).)
-
-4. **Collaborate.** Open `/d/<id>` in both windows. Type in A → it appears in B without a reload,
-   and vice-versa. Each peer shows a colored remote cursor with their name; the header shows a
-   live presence stack and a **Synced to cloud** status pill. Close B's window and its presence
-   disappears; reopen and it re-syncs.
-
-Inspect the collaboration server logs with `docker compose logs -f server` (tokens are
-redacted; no secrets are logged).
-
-**Server-restart durability:** edit a document, wait for the status pill to read _Synced_, then
-`docker compose restart server`. Reload the document — the content is reconstructed from
-Postgres. (Use `restart`, **not** `down -v`, which intentionally destroys the database volume.)
-
-## Demonstrating offline editing & conflict-free merge (Phase 3)
-
-Offline is a first-class feature: the editor writes to a local `Y.Doc` persisted in
-**IndexedDB** (via `y-indexeddb`), and reconnect merges local + remote through the Yjs
-state-vector handshake — no last-write-wins, no whole-document overwrite. To see it:
-
-1. **Set up two users on one document** as in steps 1–3 above (two separate browser
-   profiles/incognito windows; share with B via the **Share** dialog). Open `/d/<id>` in both;
-   wait for both status pills to read **Synced to cloud**.
-2. **Take User A offline.** Open DevTools → Network → set **Offline** (or toggle your OS
-   network). A's status pill switches to **Offline — saved locally**. (A server outage while
-   the browser still has network shows **Reconnecting…** instead — the two causes are
-   distinguished truthfully.)
-3. **Keep editing in both windows.** Type in A — it keeps working; the editor is **not**
-   read-only just because the socket is down. Independently type in B (still online).
-4. **Bring User A back online.** Untick Offline. Within a moment both windows **converge**:
-   A's offline edits and B's independent edits are **both** present on both sides, merged by
-   Yjs. Neither user's work is lost or overwritten.
-5. **Reload durability.** With an offline edit made, bring the network back, then reload A —
-   the edit is still there (it was persisted locally in IndexedDB). _Note:_ reloading while
-   **still** offline additionally needs a service-worker app-shell cache, which is out of MVP
-   scope; reload after the network returns.
-6. **Server restart while offline.** Take A offline and edit; `docker compose restart server`;
-   let B reconnect and edit; bring A back — A's offline edit and B/server's edit both survive
-   (server state is rebuilt from Postgres, then the handshake reconciles).
-
-> **Scope note:** offline document _creation_ is intentionally **not** supported (a new
-> document needs a server-issued id + membership first); this is flagged, not silently faked.
-
----
-
-## Document export (PDF & Word)
-
-Any document you can open can be exported from the header **Export ▾** control (PDF or
-Word `.docx`). Export is available to **owner, editor, and viewer** — it is a read-only
-action — and never appears for a document you cannot access. Trashed documents follow the
-existing rule: they are not openable through the document route, so they are not exportable.
-
-**How it works (fully client-side):**
-
-- **Single source of truth.** Export serializes the current editor state via
-  `editor.getJSON()` — a read-only snapshot of the collaborative document (a projection of
-  the Yjs CRDT). It never calls `setContent`, never mutates the `Y.Doc`, never changes the
-  schema, and never disturbs other collaborators. A dedicated regression test asserts the
-  editor JSON **and** the encoded Yjs state are byte-identical before and after an export.
-- **One transform, two renderers.** A pure, shared transform
-  (`packages/shared/src/exportModel.ts`) normalizes the ProseMirror JSON into a page-split
-  model; the PDF path ([`pdf-lib`](https://pdf-lib.js.org/)) and the DOCX path
-  ([`docx`](https://docx.js.org/)) are thin renderers over it.
-- **Real A4 pages & page breaks.** Both formats reuse the editor's own A4 geometry
-  (`apps/web/src/features/editor/pageGeometry.ts`), converting px→pt (PDF) and px→twips
-  (DOCX). Every `pageBreak` node becomes a **real page boundary** (a new PDF page / a Word
-  `PageBreak`) — never the literal text "pageBreak". PDF content that overflows a page flows
-  onto continuation pages.
-- **Formatting preserved:** paragraphs, H1–H3, **bold**, _italic_, underline,
-  ~~strikethrough~~, `inline code`, task checklists (with checked state), blockquotes,
-  links, bullet & numbered lists, left/center/right/justified alignment, empty
-  paragraphs, and multi-page documents. PDF uses a serif (Times) body face and Courier
-  for inline code; DOCX uses Word's built-in Heading styles, real bullet/decimal
-  numbering, and **real clickable hyperlinks**. (PDF links are shown as blue underlined
-  text — the pdf-lib text pipeline does not emit clickable annotations.)
-- **Offline.** Because generation is entirely in-browser from the local Yjs state and the
-  generators are bundled (not fetched on demand), export works **offline** with no network
-  round trip.
-- **Filenames.** The download is named from the document title, sanitized against
-  filesystem-illegal characters and path traversal (e.g. `Meeting Notes` → `Meeting
-Notes.pdf` / `.docx`); an empty/unusable title falls back to `document`.
-- **No server, no DB changes.** Export adds no backend endpoint, no migration, and no new
-  persistence — the existing document access controls already gate whether a document is
-  available to export.
-
----
-
-## Common commands
+### Common commands
 
 | Task                                    | Command                                                            |
 | --------------------------------------- | ------------------------------------------------------------------ |
 | Start (build if needed)                 | `docker compose up --build`                                        |
 | Start in background                     | `docker compose up -d --build`                                     |
 | Stop (keep data)                        | `docker compose down`                                              |
-| Rebuild after dependency/source changes | `docker compose up --build` (or `docker compose build --no-cache`) |
 | View logs (all / one service)           | `docker compose logs -f` / `docker compose logs -f server`         |
-| Reset the database (destroys data)      | `docker compose down -v && docker compose up -d`                   |
+| **Reset the database (destroys data)**  | `docker compose down -v && docker compose up -d`                   |
 | Run migrations manually                 | `docker compose exec server pnpm --filter @scribe/server migrate`  |
 | Open a psql shell                       | `docker compose exec db psql -U scribe -d scribe`                  |
+
+> **Data safety:** normal `docker compose up`/rebuilds keep your data (it lives in the `db_data`
+> named volume). Only `docker compose down -v` destroys the database volume.
+
+**Server-restart durability check:** edit a document, wait for the status pill to read
+_Synced_, then `docker compose restart server` and reload — the content is rebuilt from
+PostgreSQL. (Use `restart`, **not** `down -v`.)
 
 ### Developer tooling (host, after `pnpm install`)
 
 | Task                  | Command                            |
 | --------------------- | ---------------------------------- |
+| Install               | `pnpm install`                     |
 | Type-check everything | `pnpm typecheck`                   |
-| Lint                  | `pnpm lint` (fix: `pnpm lint:fix`) |
+| Lint / fix            | `pnpm lint` / `pnpm lint:fix`      |
 | Format                | `pnpm format`                      |
-| Run all tests         | `pnpm test`                        |
+| Run all unit tests    | `pnpm test`                        |
 | Build all packages    | `pnpm build`                       |
 
-**Running the integration & collaboration tests** (they hit a real Postgres and self-skip if
-none is reachable): start the DB, then run them —
+### Environment variables
+
+`.env.example` is the authoritative, commented list. The ones you're most likely to touch:
+
+| Variable                             | Purpose                                                            |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `POSTGRES_USER/PASSWORD/DB/PORT`     | Database credentials and host port (defaults: `scribe` / `5432`). |
+| `PORT`                               | Backend port (default `4000`).                                    |
+| `WEB_PORT`                           | Frontend dev-server port (default `5173`).                        |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Auth signing secrets — **change in production**.            |
+| `COOKIE_SECURE`                      | Set `true` in production (HTTPS).                                  |
+| `CORS_ORIGINS`                       | Allowed browser origin(s); also the WebSocket origin allow-list in production. |
+| `MEDIA_DIR` / `MEDIA_MAX_BYTES`      | Where uploaded images live, and the per-upload size cap.          |
+
+---
+
+## Testing
+
+The project has unit, server-integration, real-collaboration, and browser end-to-end tests.
+Be aware which ones need a running database or a running stack.
+
+### Unit tests (no database needed)
 
 ```bash
-docker compose up -d db
+pnpm test
+```
+
+Covers shared logic (roles, link-safety policy, editor/export models), UI primitives, editor
+behavior, connection-state derivation, and the export renderers.
+
+### Server integration, collaboration & offline tests (need PostgreSQL)
+
+These hit a **real Postgres** and **self-skip if none is reachable**. They use a **separate
+`scribe_test` database** — never your development `scribe` database.
+
+```bash
+docker compose up -d db          # start just the database
 pnpm --filter @scribe/server test
 ```
 
-> **The tests use a SEPARATE database (`scribe_test`), never your development `scribe` database.**
-> The integration suite `TRUNCATE`s every table before each test, so it must never point at
-> development data. The default test connection is
-> `postgres://scribe:scribe_dev_password@localhost:5433/scribe_test` (see
-> `apps/server/test/db-config.ts`); the test bootstrap creates that database automatically and a
-> guard **refuses to run** if `DATABASE_URL` points at a database whose name is not clearly a test
-> database (override deliberately with `ALLOW_NONTEST_DB=1`). Do **not** set `DATABASE_URL` to your
-> dev `scribe` database when running tests — that is what previously wiped accounts on every test
-> run. Normal `docker compose up` / rebuilds keep your dev data (it lives in the `db_data` named
-> volume); only `docker compose down -v` destroys it.
+This runs, over the **actual** Hocuspocus transport (not mocks), with byte-level state-vector
+convergence assertions:
 
-This runs the real
-WebSocket collaboration suite (`test/integration/collab.test.ts`): two-client sync,
-concurrent-edit convergence, viewer read-only, auth/authorization, idempotent persistence, and
-server-restart recovery — plus the Phase 3 **offline conflict matrix**
-(`test/integration/offline.test.ts`): offline-then-reconnect merge, both-offline divergence,
-different-region and overlapping offline edits, connection flapping, long offline sessions,
-server-restart-while-offline, and an explicit no-last-write-wins guard. All over the actual
-Hocuspocus transport with byte-level state-vector convergence assertions, not mocks.
+- `test/integration/collab.test.ts` — two-client sync, concurrent-edit convergence, viewer
+  read-only, auth/authorization, idempotent persistence, server-restart recovery.
+- `test/integration/offline.test.ts` — the offline conflict matrix: offline-then-reconnect
+  merge, both-offline divergence, overlapping offline edits, connection flapping, long offline
+  sessions, server-restart-while-offline, and an **explicit no-last-write-wins guard**.
+- Plus `api`, `auth-security`, `auth-concurrency`, `permissions`, `sharing`, `ws-security`,
+  `rate-limit`, `http-hardening`, `persistence`, `media`, `trash-recent`, `templates`.
 
-**Running the browser (Playwright) offline E2E** — real browsers, real IndexedDB, real network
-offline via `context.setOffline`, two independent browser contexts for two distinct users:
+> **Safety guard:** the test bootstrap creates `scribe_test` automatically and **refuses to
+> run** if `DATABASE_URL` points at a database whose name isn't clearly a test database
+> (override deliberately with `ALLOW_NONTEST_DB=1`). Do **not** point `DATABASE_URL` at your dev
+> `scribe` database when testing. Default test DSN:
+> `postgres://scribe:scribe_dev_password@localhost:5433/scribe_test`.
+
+### Browser end-to-end tests (Playwright — need a running stack)
+
+Real browsers, real IndexedDB, real network-offline via `context.setOffline`, and two
+independent browser contexts for two distinct users.
 
 ```bash
 # one-time: install the browser
 pnpm --filter @scribe/web exec playwright install chromium
 
-# start the stack (DB + server + web) — e.g. docker compose up, or run them on the host
-# then, pointing the seed helper at the SAME database the running server uses:
+# start the stack (docker compose up), then run the suite pointed at the SAME database
 DATABASE_URL='postgres://scribe:scribe_dev_password@localhost:5433/scribe' \
   pnpm --filter @scribe/web test:e2e
 ```
 
-> The E2E suite registers throwaway users against the **running** stack, so its seed helper must
-> use the same database that stack's server uses. It only ever _adds_ rows (never truncates), so it
-> cannot wipe data — but to keep your development `scribe` database pristine, run the E2E stack
-> against a disposable database, e.g. start it with `POSTGRES_DB=scribe_e2e` (and matching
-> `DATABASE_URL`) and point the seed helper at `.../scribe_e2e`.
+The E2E specs cover live collaboration, offline editing that stays editable + reconnect
+convergence, offline-edit-survives-reload, both-offline divergence with no last-write-wins,
+ephemeral presence, sharing, permission revocation, formatting, export, media/comments,
+navigation, and branding.
 
-The E2E suite (`apps/web/e2e/offline.spec.ts`) covers: live collaboration, offline editing that
-stays editable + reconnect convergence, offline-edit-survives-reload, both-offline divergence
-with no last-write-wins, and ephemeral presence (disappears on disconnect, returns on reconnect).
-Set `PLAYWRIGHT_BASE_URL` to target a deployment other than the default `http://localhost:5173`.
+### Honest test caveats
+
+- The E2E suite **registers throwaway users against the running stack**, so its seed helper must
+  point at the same database the running server uses. It only ever _adds_ rows (never
+  truncates), so it can't wipe data — but to keep dev data pristine, run E2E against a disposable
+  database (e.g. `POSTGRES_DB=scribe_e2e` with a matching `DATABASE_URL`).
+- The **dev server's registration endpoint is rate-limited**. A full Playwright run that
+  registers many users quickly can hit that limit; run the stack with `NODE_ENV=test` (which the
+  test setup uses) so the suite's registrations aren't throttled.
+- There is a **known, pre-existing task-list checkbox E2E assertion** that can be flaky/failing
+  and is unrelated to the collaboration/offline core; it is called out here rather than hidden.
+- **This README does not claim the entire E2E suite is green in every environment.** Typecheck
+  passes cleanly across all packages (`pnpm typecheck`); the unit and server-integration suites
+  are the most reproducible. E2E results depend on the running stack and the caveats above.
+
+See [`docs/architecture/testing-strategy.md`](docs/architecture/testing-strategy.md) for the
+full testing philosophy.
 
 ---
 
-## Roadmap
+## Submission demo script (for the video)
 
-Phase 0 is the foundation. Subsequent phases layer on the real-time/offline system
-described in the architecture docs, **without** re-architecting:
+A 3–5 minute screen recording that shows the two things the assignment cares about most.
+Suggested flow:
 
-1. **Phase 0 — Foundation** ✅ — monorepo, Docker, DB + migrations, auth, document metadata,
-   app shell.
-2. **Phase 1 — Editor** ✅ — Tiptap/ProseMirror rich-text editor (bold, italic, underline,
-   strikethrough, inline code, headings, bullet/numbered lists, task checklists, blockquote,
-   links, alignment, page breaks) mounted in the document canvas. All formatting is real
-   ProseMirror/Yjs document state — see
-   [`docs/architecture/editor-formatting.md`](docs/architecture/editor-formatting.md) and
-   [ADR 0011](docs/architecture/adr/0011-link-safety-policy.md) for schema and link-safety
-   details.
-3. **Phase 2 — Real-time collaboration** ✅ _(this phase)_ — Yjs + Hocuspocus over WebSocket,
-   live multi-user editing, WebSocket auth/authorization, presence/awareness, remote cursors,
-   `y-indexeddb` local persistence, and CRDT persistence on the server (update log + snapshots).
-4. **Phase 3 — Offline & merge** ✅ _(this phase)_ — the truthful sync state machine
-   (offline/reconnecting/syncing/synced), reconnect + conflict-free merge under the full offline
-   scenario matrix (offline edits, flapping, long offline, simultaneous/divergent/overlapping
-   offline edits, server-restart-while-offline), offline-open of a locally-known document via a
-   content-free metadata cache, plus the scripted convergence integration suite and Playwright
-   multi-context E2E.
-5. **Phase 4 — Durability & security hardening** ✅ _(this phase)_ — stateful refresh-token
-   rotation + reuse detection + session revocation, HTTP body / WebSocket frame size caps,
-   per-IP + per-user rate limiting (in-memory, single-instance), structured secret-free
-   security event logging, crash-safe transactional persistence + compaction, and security /
-   durability regression suites. See [`docs/architecture/security.md`](docs/architecture/security.md)
-   and [ADR-0009](docs/architecture/adr/0009-refresh-rotation-and-abuse-limits.md).
-6. **Phase 5 — Sharing & product polish** ✅ _(this phase)_ — a real user-facing Share flow
-   (owner adds registered users, assigns Editor/Viewer, changes roles, removes members) backed
-   by a server-side membership API + user search authorized against the existing `memberships`
-   table; owner invariant + cross-document IDOR rejection + input validation; dashboard grouping
-   into owned vs. shared; sharing integration + multi-user Playwright coverage. No Redis, no new
-   service, no CRDT change. See [`ADR-0010`](docs/architecture/adr/0010-sharing-membership-api.md).
-7. **Document export** ✅ — client-side PDF ([`pdf-lib`](https://pdf-lib.js.org/)) and Word
-   `.docx` ([`docx`](https://docx.js.org/)) export from the current editor state, reusing the
-   editor's A4 geometry, turning `pageBreak` nodes into real page boundaries, preserving
-   headings/emphasis/lists/alignment, working offline, and never mutating the Yjs document. No
-   backend endpoint, no migration, no CRDT change.
-8. **Editor formatting completion** ✅ — strikethrough, inline code, task checklists,
-   blockquote, and safe links wired to the toolbar as real ProseMirror/Yjs schema features.
-   See [`editor-formatting.md`](docs/architecture/editor-formatting.md).
-9. **Media attachments & inline comments** ✅ _(this phase)_ — image upload (PNG/JPEG/WebP) to
-   authenticated **object storage** referenced by a `media` schema node (the binary is never
-   in Yjs); server-authorized upload/serve with content-sniffed validation and safe UUID keys;
-   and **inline comments** as a Yjs `comment` mark + comments `Y.Map` (anchors move with the
-   text, collaborate, work offline, and are excluded from export). No second CRDT, no
-   whole-document replacement. See
-   [`media-and-comments.md`](docs/architecture/media-and-comments.md),
-   [`ADR-0012`](docs/architecture/adr/0012-media-storage.md), and
-   [`ADR-0013`](docs/architecture/adr/0013-inline-comments.md).
-10. **Phase 6+ (future)** — multi-instance scaling (shared rate-limit/pubsub store, e.g.
-    Redis), a media-storage GC sweep for orphaned binaries, service-worker offline app shell,
-    offline document creation, version history, ownership transfer, email/link invitations.
+1. **Open the same document as two users.** Two browser profiles/incognito windows, signed in
+   as A and B; A shares the document with B as Editor.
+2. **Show presence.** Point out both names/colors in the header and each other's live cursor.
+3. **Live typing.** A types a sentence; B sees it appear **without reloading**. Then B types and
+   A sees it.
+4. **Concurrent edits.** Both type in different paragraphs at the same time — both edits land,
+   nothing is lost.
+5. **Go offline (the key part).** In A's DevTools → Network, switch to **Offline**. Show the
+   status change to "Offline — saved locally," then **keep editing** in A (add a clearly
+   distinct paragraph). Meanwhile, have B (still online) edit a different part.
+6. **Reconnect.** Turn A's network back on. Within a moment, both windows **converge**: A's
+   offline edits and B's online edits are **both present on both sides**.
+7. **Explain briefly why it merges.** One line: "Changes are merged with Yjs CRDTs — edits are
+   combined, not overwritten; there's no last-write-wins."
 
-Full detail: [`docs/architecture/README.md`](docs/architecture/README.md).
+Optional extras if time allows: export to PDF, a comment, or an image paste.
+
+---
+
+## Project structure
+
+```
+apps/
+  web/       # React + Vite frontend
+    src/
+      app/            # shell (header, sidebar, routing)
+      ui/             # design-system primitives (Editorial Precision)
+      api/            # HTTP client + token handling
+      stores/         # Zustand stores (UI/auth state — never document content)
+      features/
+        editor/       # Tiptap editor, toolbar, pagination, media node views
+        collaboration/# Yjs + Hocuspocus + y-indexeddb lifecycle, presence
+        documents/    # lists, trash, recent, metadata cache
+        sharing/      # Share dialog + membership UI
+        comments/     # inline comments UI
+        export/       # PDF + DOCX generation
+        templates/    # template gallery
+        auth/         # sign in / sign up
+    e2e/              # Playwright specs
+  server/    # Fastify backend
+    src/
+      collab/         # Hocuspocus attach, WS auth, persistence hooks
+      modules/        # auth, users, documents, memberships, media, persistence
+      db/             # pool + SQL migrations
+      http/, config/, observability/
+    test/             # unit + integration (real Postgres)
+packages/
+  shared/    # @scribe/shared — editor/CRDT schema, DTOs, roles, Zod, export model
+docs/architecture/   # architecture docs + ADRs (source of truth)
+UI/                  # design reference: DESIGN.md, screen.png
+docker-compose.yml   # dev stack: web + server + postgres
+.env.example         # environment template (copy to .env)
+```
+
+> Note on naming: the product is **ProDocs** (all user-facing surfaces). Internal package ids
+> (`@scribe/*`) and some storage keys keep the original `scribe` name to avoid a churny,
+> risk-only rename of internal identifiers.
+
+---
+
+## Known limitations
+
+Stated plainly, and separated from the requirements they don't affect:
+
+- **No hosted live demo** — run locally (this is by design for a take-home).
+- **The demo video is not yet recorded** — the script is above.
+- **Single-instance backend.** Rate limiting and the collaboration server are in-process. A
+  horizontally-scaled deployment would need a shared store (e.g. Redis) — intentionally out of
+  MVP scope.
+- **Offline app-shell reload.** Offline _edits_ survive a reload once the network returns, but
+  reloading the page while _still_ offline needs a service-worker app-shell cache (not built).
+- **Offline document _creation_** is not supported (a new document needs a server-issued id +
+  membership first); flagged in the UI, not faked.
+- **No background compaction sweep / orphaned-media GC / version history / ownership transfer /
+  email-link invitations** — these are noted as future work, not present.
+- **Test-environment caveats** — see the honest notes under [Testing](#testing) (E2E needs a
+  running stack + seed DB; dev-server registration rate limit; a known task-list checkbox E2E
+  assertion).
+
+None of these affect the mandatory MVP: rich-text editing, real-time collaboration, offline
+editing with conflict-free merge, presence, and persistence are all implemented and tested.
+
+---
 
 ## Security notes (development vs. production)
 
-- The shipped `.env.example` secrets are **development-only**; the server refuses to start
-  in `NODE_ENV=production` with default JWT secrets.
+- The `.env.example` secrets are **development-only**; the server refuses to start in
+  `NODE_ENV=production` with default JWT secrets.
 - In production set `COOKIE_SECURE=true` (HTTPS), strong unique `JWT_*` secrets, and a
-  restrictive `CORS_ORIGINS`. See [`docs/architecture/security.md`](docs/architecture/security.md).
+  restrictive `CORS_ORIGINS`.
 - **WebSocket origin:** the `/collab` upgrade checks the request `Origin` against
-  `CORS_ORIGINS` in production (any origin is allowed in development for convenience), so set
-  `CORS_ORIGINS` to your real frontend origin(s) in production. All WS traffic should run over
-  `wss://` behind the TLS-terminating reverse proxy. The socket authenticates with the
-  short-lived access token only; the refresh token is never sent to the WebSocket layer.
+  `CORS_ORIGINS` in production (any origin allowed in development for convenience). Run all WS
+  traffic over `wss://` behind a TLS-terminating reverse proxy. The socket authenticates with
+  the short-lived access token only; the refresh token is never sent to the WebSocket layer.
+
+See [`docs/architecture/security.md`](docs/architecture/security.md) for the complete model.
