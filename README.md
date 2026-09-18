@@ -23,8 +23,6 @@ design** — so those are the three things this README explains most carefully.
 
 ## Table of contents
 
-- [Demo & video](#demo--video)
-- [Why ProDocs](#why-prodocs)
 - [Assignment requirements at a glance](#assignment-requirements-at-a-glance)
 - [Features: core vs. additional](#features-core-vs-additional)
 - [How real-time collaboration works](#how-real-time-collaboration-works)
@@ -39,43 +37,11 @@ design** — so those are the three things this README explains most carefully.
 - [Project structure](#project-structure)
 - [Known limitations](#known-limitations)
 
----
 
-## Demo & video
-
-There is **no hosted live demo** — ProDocs is intended to be **run locally** with Docker
-(one command; see [Running locally](#running-locally)). Real-time collaboration and offline
-merge are easiest to appreciate with two browser windows on your own machine.
-
-A **3–5 minute submission video** demonstrating two-user editing and the offline scenario is
-part of the assignment. When it is recorded, its link goes here:
-
-> **Demo video:** _add the link here once recorded_ (see the
-> [demo script](#submission-demo-script-for-the-video) below for exactly what it shows).
-
-A few screenshots of the real running application appear next to the relevant sections below.
-They are still, though — the collaboration and offline behavior are dynamic and are best seen
-live or in the video. The design reference used to build the UI lives in
-[`UI/DESIGN.md`](UI/DESIGN.md).
 
 ---
 
-## Why ProDocs
 
-The assignment asks for a document editor "in the spirit of Google Docs," with the emphasis
-explicitly on four things:
-
-- **Collaborative documents** — more than one person editing the same document.
-- **Real-time editing** — changes appear almost immediately, with no page reload.
-- **Offline work** — you can keep editing with no internet, and it syncs later.
-- **Conflict-free synchronization** — when edits made independently come back together, they
-  _merge_ rather than one side silently winning and erasing the other.
-- **An original UI** — not a Google Docs clone, not an untouched UI-framework default theme,
-  but a coherent, deliberate visual system.
-
-ProDocs is built around exactly these priorities.
-
----
 
 ## Assignment requirements at a glance
 
